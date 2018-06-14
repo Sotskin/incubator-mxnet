@@ -1,27 +1,26 @@
 #ifndef MXNET_STORAGE_SWAP_H_
 #define MXNET_STORAGE_SWAP_H_
 
-#include <mutex>
 #include <pthread.h>
-#include <thread>
 #include <unordered_map>
-#include "./storage.h"
+#include <memory>
 
 namespace mxnet {
 
 using handle_id_t = unsigned long long;
 using timestamp_t = unsigned long long;
 
+struct SwapInfo {
+  handle_id_t handle_id;
+  bool swapped_in;
+  int device;
+  void* dptr;
+  char* cpu_address;
+  size_t size;
+};
+
 class Swap {
 public:
-  struct SwapInfo {
-    handle_id_t handle_id;
-    bool swapped_in;
-    int device;
-    void* dptr;
-    char* cpu_address;
-    size_t size;
-  };
   ~Swap();
   static Swap* Get();
   static std::shared_ptr<Swap> _GetSharedRef();
@@ -33,8 +32,8 @@ public:
 
 private:
   Swap();
-  std::unordered_map<handle_id_t, SwapInfo*> swap_info;
-  std::mutex mutex_;
+  std::unordered_map<handle_id_t, SwapInfo*> swap_info_;
+  pthread_rwlock_t swap_lock_;
 }; // Class Swap
 
 } // namespace mxnet

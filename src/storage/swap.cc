@@ -31,6 +31,7 @@ void Swap::SwapIn(SwapInfo *info){
   // Not implemented
 }
 
+// TO-DO compatibility for MKLMEM
 void* Swap::GetAddr(handle_id_t handle_id, size_t size){
   pthread_rwlock_rdlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);

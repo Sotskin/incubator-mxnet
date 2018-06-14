@@ -189,7 +189,7 @@ class CuDNNRNNOp : public Operator{
                                          cy_ptr,
                                          temp_space.dptr_,
                                          workspace_byte_,
-                                         reserve_space_.dptr,
+                                         reserve_space_.GetDptr(),
                                          reserve_space_byte_));
     } else {
       // inference mode
@@ -308,7 +308,7 @@ class CuDNNRNNOp : public Operator{
                                     dcx_ptr,
                                     temp_space.dptr_,
                                     workspace_byte_,
-                                    reserve_space_.dptr,
+                                    reserve_space_.GetDptr(),
                                     reserve_space_byte_));
     CUDNN_CALL(cudnnRNNBackwardWeights(s->dnn_handle_,
                                        rnn_desc_,
@@ -323,7 +323,7 @@ class CuDNNRNNOp : public Operator{
                                        workspace_byte_,
                                        dw_desc_,
                                        dw.dptr_,
-                                       reserve_space_.dptr,
+                                       reserve_space_.GetDptr(),
                                        reserve_space_byte_));
   }
 
@@ -466,7 +466,7 @@ class CuDNNRNNOp : public Operator{
       }
       CUDNN_CALL(cudnnSetDropoutDescriptor(dropout_desc_, s->dnn_handle_,
                                            param_.p,  // discard probability
-                                           dropout_states_.dptr, dropout_byte_,
+                                           dropout_states_.GetDptr(), dropout_byte_,
                                            seed_));
       // RNN descriptors
       #if CUDNN_MAJOR >= 6

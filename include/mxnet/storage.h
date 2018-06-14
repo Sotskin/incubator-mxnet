@@ -25,10 +25,15 @@
 #ifndef MXNET_STORAGE_H_
 #define MXNET_STORAGE_H_
 
+#include <atomic>
 #include <memory>
+#include "./swap.h"
 #include "./base.h"
 
 namespace mxnet {
+
+using handle_id_t = unsigned long long;
+using timestamp_t = unsigned long long;
 
 /*!
  * \brief Storage manager across multiple devices.
@@ -38,11 +43,13 @@ class Storage {
   /*!
    * \brief Storage handle.
    */
-  struct Handle {
-    /*!
-     * \brief Pointer to the data.
-     */
-    void* dptr{nullptr};
+  class Handle {
+  public:
+    Handle() {
+      id_ = (base_id_.fetch_add(1, std::memory_order_relaxed)) + 1;
+    }
+    
+    //void* dptr;
     /*!
      * \brief Size of the storage.
      */
@@ -56,7 +63,26 @@ class Storage {
      */
     int shared_pid{-1};
     int shared_id{-1};
-  };
+
+    void Free(){
+      Swap::Get()->DelAddr(id_, size);
+    }
+
+    void SetDptr(void* ptr) {
+      Swap::Get()->SetAddr(id_, ptr, size);
+      dptr_ = ptr;
+    }
+
+    void* GetDptr() const {
+      return Swap::Get()->GetAddr(id_, size);
+    }
+
+
+  private:
+    static std::atomic<handle_id_t> base_id_;
+    void* dptr_;
+    handle_id_t id_;
+  }; // struct Handle
   /*!
    * \brief Allocate a new contiguous memory for a given size.
    * \param size Total size of memory in bytes.

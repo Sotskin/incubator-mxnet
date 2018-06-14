@@ -418,7 +418,7 @@ class RNNOp : public Operator{
         init_space_ = true;
       }
 
-      DType* reserve_space_ptr = static_cast<DType*>(reserve_space_.dptr);
+      DType* reserve_space_ptr = static_cast<DType*>(reserve_space_.GetDptr());
       RNNForwardTraining<DType>(workspace.dptr_,
                                 reserve_space_ptr,
                                 param_.state_outputs,
@@ -540,7 +540,7 @@ class RNNOp : public Operator{
       LOG(FATAL) << "Check forward init error";
     }
 
-    DType* reserve_space_ptr = static_cast<DType*>(reserve_space_.dptr);
+    DType* reserve_space_ptr = static_cast<DType*>(reserve_space_.GetDptr());
     RNNBackward<DType>(workspace.dptr_,
                        reserve_space_ptr,
                        param_.num_layers,

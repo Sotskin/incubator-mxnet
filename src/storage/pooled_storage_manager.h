@@ -70,7 +70,7 @@ class GPUPooledStorageManager final : public StorageManager {
 
  private:
   void DirectFreeNoLock(Storage::Handle handle) {
-    cudaError_t err = cudaFree(handle.dptr);
+    cudaError_t err = cudaFree(handle.GetDptr());
     size_t size = handle.size + NDEV;
     // ignore unloading error, as memory has already been recycled
     if (err != cudaSuccess && err != cudaErrorCudartUnloading) {
@@ -108,12 +108,12 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
       LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
     }
     used_memory_ += size;
-    handle->dptr = ret;
+    handle->SetDptr(ret);
   } else {
     auto&& reuse_pool = reuse_it->second;
     auto ret = reuse_pool.back();
     reuse_pool.pop_back();
-    handle->dptr = ret;
+    handle->SetDptr(ret);
   }
 }
 
@@ -121,14 +121,14 @@ void GPUPooledStorageManager::Free(Storage::Handle handle) {
   std::lock_guard<std::mutex> lock(Storage::Get()->GetMutex(Context::kGPU));
   size_t size = handle.size + NDEV;
   auto&& reuse_pool = memory_pool_[size];
-  reuse_pool.push_back(handle.dptr);
+  reuse_pool.push_back(handle.GetDptr());
 }
 
 void GPUPooledStorageManager::ReleaseAll() {
   for (auto&& i : memory_pool_) {
     for (auto&& j : i.second) {
       Storage::Handle handle;
-      handle.dptr = j;
+      handle.SetDptr(j);
       handle.size = i.first - NDEV;
       DirectFreeNoLock(handle);
     }

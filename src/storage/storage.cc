@@ -188,4 +188,7 @@ Storage* Storage::Get() {
   static Storage *ptr = _GetSharedRef().get();
   return ptr;
 }
+
+std::atomic<handle_id_t> Storage::Handle::base_id_(0);
+
 }  // namespace mxnet

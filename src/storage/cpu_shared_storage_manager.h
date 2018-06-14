@@ -70,7 +70,7 @@ class CPUSharedStorageManager final : public StorageManager {
   void Alloc(Storage::Handle* handle) override;
   void Free(Storage::Handle handle) override {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
-    pool_.erase(handle.dptr);
+    pool_.erase(handle.GetDptr());
     FreeImpl(handle);
   }
 
@@ -80,13 +80,13 @@ class CPUSharedStorageManager final : public StorageManager {
 
   void IncrementRefCount(const Storage::Handle& handle) {
     std::atomic<int>* counter = reinterpret_cast<std::atomic<int>*>(
-        static_cast<char*>(handle.dptr) - alignment_);
+        static_cast<char*>(handle.GetDptr()) - alignment_);
     ++(*counter);
   }
 
   int DecrementRefCount(const Storage::Handle& handle) {
     std::atomic<int>* counter = reinterpret_cast<std::atomic<int>*>(
-        static_cast<char*>(handle.dptr) - alignment_);
+        static_cast<char*>(handle.GetDptr()) - alignment_);
     return --(*counter);
   }
 
@@ -204,17 +204,17 @@ void CPUSharedStorageManager::Alloc(Storage::Handle* handle) {
   if (is_new) {
     new (ptr) std::atomic<int>(1);
   }
-  handle->dptr = static_cast<char*>(ptr) + alignment_;
-  pool_[handle->dptr] = *handle;
+  handle->SetDptr(static_cast<char*>(ptr) + alignment_);
+  pool_[handle->GetDptr()] = *handle;
 }
 
 void CPUSharedStorageManager::FreeImpl(const Storage::Handle& handle) {
   int count = DecrementRefCount(handle);
   CHECK_GE(count, 0);
 #ifdef _WIN32
-  is_free_[handle.dptr] = handle;
+  is_free_[handle.GetDptr()] = handle;
 #else
-  CHECK_EQ(munmap(static_cast<char*>(handle.dptr) - alignment_,
+  CHECK_EQ(munmap(static_cast<char*>(handle.GetDptr()) - alignment_,
                   handle.size + alignment_), 0)
       << "Failed to unmap shared memory. munmap failed with error "
       << strerror(errno);
@@ -240,9 +240,9 @@ void CPUSharedStorageManager::FreeImpl(const Storage::Handle& handle) {
 inline void CPUSharedStorageManager::CheckAndRealFree() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   for (auto it = std::begin(is_free_); it != std::end(is_free_);) {
-    void* ptr = static_cast<char*>(it->second.dptr) - alignment_;
+    void* ptr = static_cast<char*>(it->second.GetDptr()) - alignment_;
     std::atomic<int>* counter = reinterpret_cast<std::atomic<int>*>(
-      static_cast<char*>(it->second.dptr) - alignment_);
+      static_cast<char*>(it->second.GetDptr()) - alignment_);
     if ((*counter) == 0) {
       CHECK_NE(UnmapViewOfFile(ptr), 0)
         << "Failed to UnmapViewOfFile shared memory ";

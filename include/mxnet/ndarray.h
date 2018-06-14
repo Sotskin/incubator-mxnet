@@ -239,7 +239,7 @@ class NDArray {
     auto shape = aux_shape(i);
     auto type = aux_type(i);
     MSHADOW_TYPE_SWITCH(type, DType, {
-      auto dptr = static_cast<DType*>(ptr_->aux_handles[i].dptr);
+      auto dptr = static_cast<DType*>(ptr_->aux_handles[i].GetDptr());
       CHECK(stype == kRowSparseStorage || stype == kCSRStorage)
             << "Unexpected storage type: " << stype;
       res = TBlob(dptr, shape, ptr_->aux_handles[i].ctx.dev_mask(), type);
@@ -793,7 +793,7 @@ class NDArray {
       }
       // init shandle
       shandle.ctx = ctx;
-      shandle.dptr = data.dptr_;
+      shandle.SetDptr(data.dptr_);
       shandle.size = data.shape_.Size() * mshadow::mshadow_sizeof(data.type_flag_);
       storage_shape = data.shape_;
     }
@@ -846,14 +846,14 @@ class NDArray {
       }
       // init shandle
       shandle.ctx = ctx;
-      shandle.dptr = data.dptr_;
+      shandle.SetDptr(data.dptr_);
       shandle.size = data.shape_.Size() * mshadow_sizeof(data.type_flag_);
       storage_shape = data.shape_;
       // init aux handles
       for (const auto &aux : aux_data) {
         Storage::Handle aux_handle;
         aux_handle.ctx = ctx;
-        aux_handle.dptr = aux.dptr_;
+        aux_handle.SetDptr(aux.dptr_);
         aux_handle.size = aux.shape_.Size() * mshadow_sizeof(aux.type_flag_);
         aux_handles.push_back(aux_handle);
         aux_types.emplace_back(aux.type_flag_);

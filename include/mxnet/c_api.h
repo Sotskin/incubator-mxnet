@@ -229,6 +229,10 @@ MXNET_DLL int MXRandomSeedContext(int seed, int dev_type, int dev_id);
  */
 MXNET_DLL int MXNotifyShutdown();
 
+MXNET_DLL int MXStartIteration();
+MXNET_DLL int MXEndIteration();
+
+
 /*!
  * \brief Set up configuration of profiler
  * \param num_params Number of parameters

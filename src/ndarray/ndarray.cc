@@ -440,6 +440,7 @@ void NDArray::Chunk::SetMKLMem(const TShape &shape, int dtype) {
   }
   mkldnn::memory::desc data_md{dims, get_mkldnn_type(dtype), layout};
   auto cpu_engine = CpuEngine::Get()->get_engine();
+  // FIXME(sotskin): GetDptr() never returns a nullptr
   if (shandle.GetDptr() == nullptr) {
     CHECK(delay_alloc);
     CheckAndAlloc();

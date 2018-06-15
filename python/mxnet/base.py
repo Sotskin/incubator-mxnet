@@ -460,6 +460,7 @@ atexit.register(_notify_shutdown)
 
 def start_iteration():
     check_call(_LTB.MXStartIteration())
+
 def end_iteration():
     check_call(_LTB.MXStopIteration())
 

@@ -5,8 +5,6 @@ import pickle as pickle
 import logging
 import argparse
 
-rng = np.random.RandomState(seed=42)
-
 def feed_args(net, arg_arrays):
     names = net.list_arguments()
     for name, arr in zip(names, arg_arrays):
@@ -14,7 +12,6 @@ def feed_args(net, arg_arrays):
             arr[:] = 0.0
 
 def test():
-    has_mpi = False
     logging.basicConfig(level=logging.DEBUG)
 
     print(sys.argv)

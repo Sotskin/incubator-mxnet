@@ -11,8 +11,6 @@ def feed_args(net, arg_arrays):
             arr[:] = 0.0
 
 def test():
-    logging.basicConfig(level=logging.DEBUG)
-
     print(sys.argv)
     parser = argparse.ArgumentParser("Benchmark Tests")
     parser.add_argument('model', type=str, help='The model to bested.')

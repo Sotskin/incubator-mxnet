@@ -461,7 +461,7 @@ atexit.register(_notify_shutdown)
 def start_iteration():
     check_call(_LTB.MXStartIteration())
 def end_iteration():
-    check_call(_LTB.MXEndIteration())
+    check_call(_LTB.MXStopIteration())
 
 def add_fileline_to_docstring(module, incursive=True):
     """Append the definition position to each function contained in module.

@@ -32,6 +32,7 @@
 #include <mxnet/ndarray.h>
 #include <mxnet/operator.h>
 #include <mxnet/io.h>
+#include <mxnet/gpu_swap_history.h>
 #include <mxnet/c_api.h>
 #include <mxnet/kvstore.h>
 #include <mxnet/rtc.h>
@@ -101,6 +102,18 @@ int MXRandomSeedContext(int seed, int dev_type, int dev_id) {
 int MXNotifyShutdown() {
   API_BEGIN();
   Engine::Get()->NotifyShutdown();
+  API_END();
+}
+
+int MXStartIteration() {
+  API_BEGIN();
+  MemHistory::Get()->StartIteration();
+  API_END();
+}
+
+int MXStopIteration() {
+  API_BEGIN();
+  MemHistory::Get()->StopIteration();
   API_END();
 }
 

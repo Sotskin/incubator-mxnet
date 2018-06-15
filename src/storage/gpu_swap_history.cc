@@ -2,11 +2,12 @@
 #include <vector>
 #include <set>
 #include <mxnet/gpu_swap_history.h>
-using namespace mxnet;
+
+namespace mxnet {
 
 MemHistory::MemHistory() {
   iteration_started_ = false;
-  do_record_ = false;
+  is_recording_ = false;
   iteration_idx_ = 0;
 }
 
@@ -26,7 +27,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
                           record_t operation_id, size_t size) {
   if(!IterationStarted())
     return;
-  if(!DoRecord()) {
+  if(!IsRecording()) {
   } else {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     timestamp_t t = (duration_cast<microseconds>
@@ -37,7 +38,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
   record_idx++;
 }
 
-handle_id_t MemHistory::GetFurthest(std::vector<handle_id_t> handles, int device) {
+handle_id_t MemHistory::DecideVictim(std::vector<handle_id_t> handles, int device) {
   // TODO(karl): not implemented
   //std::lock_guard<std::mutex> lock(mutex_[device]);
   return 0;
@@ -70,15 +71,15 @@ void MemHistory::StartIteration() {
   iteration_started_ = true;
   record_idx = 0;
   if(iteration_idx_ == 1)
-    do_record_ = true;
+    is_recording_ = true;
   begin_time_ = high_resolution_clock::now();
 }
 
-void MemHistory::EndIteration() {
-  do_record_ = false;
+void MemHistory::StopIteration() {
+  is_recording_ = false;
   iteration_started_ = false;
   ++iteration_idx_;
 }
 
-
+} // namespace mxnet
 

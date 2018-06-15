@@ -1,7 +1,6 @@
 import mxnet as mx
 import numpy as np
 import os, sys,time
-import pickle as pickle
 import logging
 import argparse
 
@@ -15,7 +14,7 @@ def test():
     logging.basicConfig(level=logging.DEBUG)
 
     print(sys.argv)
-    parser = argparse.ArgumentParser("Tofu GPU test")
+    parser = argparse.ArgumentParser("Benchmark Tests")
     parser.add_argument('model', type=str, help='The model to bested.')
     parser.add_argument('--batch_size', type=int, help='Batch size', default=128)
     parser.add_argument('--num_gpus', type=int, default=1, help='Number of GPUs')

@@ -11,12 +11,11 @@
 #include <cuda_runtime.h>
 #endif
 
-#define NUMBER_OF_GPU 8
-
 using namespace std::chrono;
 
 namespace mxnet {
 
+const int NUMBER_OF_GPU = 8;
 
 class MemHistory {
 public:

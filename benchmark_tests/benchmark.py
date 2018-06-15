@@ -13,8 +13,8 @@ def feed_args(net, arg_arrays):
 def test():
     print(sys.argv)
     parser = argparse.ArgumentParser("Benchmark Tests")
-    parser.add_argument('model', type=str, help='The model to bested.')
-    parser.add_argument('--batch_size', type=int, help='Batch size', default=128)
+    parser.add_argument('model', type=str, default="resnet", help='The model to be tested.')
+    parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--num_gpus', type=int, default=1, help='Number of GPUs')
     parser.add_argument('--num_loops', type=int, default=30, help='Number of benchmarking loops.')
     parser.add_argument('--cold_skip', type=int, default=5, help='Number of loops skipped for warm up.')

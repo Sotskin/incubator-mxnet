@@ -17,10 +17,6 @@ def test():
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--num_gpus', type=int, default=1, help='Number of GPUs')
     parser.add_argument('--num_loops', type=int, default=30, help='Number of benchmarking loops.')
-    parser.add_argument('--cold_skip', type=int, default=5, help='Number of loops skipped for warm up.')
-    parser.add_argument('-f', '--host_file', type=str,
-                        help='Host file that contains addresses of all workers.')
-    parser.add_argument('--use_momentum', type=int, default=1, help='Whether to simulate memory consumption with momentum.')
 
     args, _ = parser.parse_known_args()
 
@@ -37,8 +33,7 @@ def test():
         default_ctx = mx.cpu(0)
 
     num_loops = args.num_loops
-    cold_skip = args.cold_skip
-
+    
     net, image_shape, num_classes = net_module.get_symbol(args)
 
     print(net.list_arguments())
@@ -59,10 +54,6 @@ def test():
                  if name != 'data' and not name.endswith('label')}
 
     print('Argument grads: ', args_grad.keys())
-    if args.use_momentum:
-        args_mom = {name : mx.nd.zeros(shape, default_ctx, dtype=dtype)
-                    for name, shape, dtype in zip(net.list_arguments(), arg_shapes, arg_types)
-                    if name != 'data' and not name.endswith('label')}
 
     executor = net.bind(ctx=default_ctx,
                         args=arg_arrays,
@@ -72,13 +63,12 @@ def test():
 
     feed_args(net, arg_arrays)
     all_time = []
+    t0 = time.time()
     for i in range(num_loops):
         print('=> loop %d' % i);
 	#uncomment this line to enable start_iteration()
         #mx.base.start_iteration()
         st_l = time.time()
-        if i == cold_skip + 1:
-            t0 = time.time()
         outputs = executor.forward()
         if num_classes is None:
           executor.backward(outputs[0])
@@ -92,8 +82,7 @@ def test():
             outputs[-1].wait_to_read()
         ed_l = time.time()
         print('=> loop duration %f' % float(ed_l - st_l))
-        if (i >= cold_skip):
-             all_time.append(float(ed_l - st_l))
+        all_time.append(float(ed_l - st_l))
     t1 = time.time()
 
     duration = t1 - t0

@@ -95,10 +95,10 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     assert(num_unit == num_stages)
     data = mx.sym.Variable(name='data')
     (nchannel, height, width) = image_shape
-    if height <= 32:        
+    if height <= 32:       
         body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv0", workspace=workspace)
-    else:                     
+    else:                       
         body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
         body = Activation(data=body, act_type='relu', name='relu0')
@@ -118,10 +118,6 @@ def resnet(units, num_stages, filter_list, num_classes, image_shape, bottle_neck
     return mx.symbol.SoftmaxOutput(data=fc1, name='softmax')
 
 def get_symbol(args):
-    """
-    Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
-    Original author Wei Wu
-    """
     image_shape = (3, 224, 224)
     num_classes = 1000
     num_layers = 50

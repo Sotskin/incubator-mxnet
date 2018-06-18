@@ -5,7 +5,6 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include "./swap.h"
 
 #if MXNET_USE_CUDA
 #include <cuda_runtime.h>
@@ -14,6 +13,9 @@
 using namespace std::chrono;
 
 namespace mxnet {
+
+using handle_id_t = unsigned long long;
+using timestamp_t = unsigned long long;
 
 const int NUMBER_OF_GPU = 8;
 

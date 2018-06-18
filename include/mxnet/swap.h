@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <unordered_map>
 #include <memory>
+#include <mxnet/gpu_swap_history.h>
 
 namespace mxnet {
 

@@ -792,7 +792,7 @@ class NDArray {
       } else {
         CHECK_EQ(data.dev_mask(), gpu::kDevMask);
         ctx = Context::GPU(dev_id);
-        real_dev_id c= dev_id;
+        real_dev_id = dev_id;
       }
       // init shandle
       shandle.ctx = ctx;

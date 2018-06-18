@@ -1,7 +1,6 @@
 #include <iostream>
 #include <memory>
 #include <mxnet/swap.h>
-#include <mxnet/gpu_swap_history.h>
 
 namespace mxnet{
 

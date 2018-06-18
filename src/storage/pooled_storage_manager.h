@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <mxnet/mem_mgr.h>
 #include <new>
 #include "./storage_manager.h"
 #include "../common/cuda_utils.h"
@@ -70,7 +71,8 @@ class GPUPooledStorageManager final : public StorageManager {
 
  private:
   void DirectFreeNoLock(Storage::Handle handle) {
-    cudaError_t err = cudaFree(handle.GetDptr());
+    MemoryManager mm;
+    cudaError_t err = mm.Free(handle.GetDptr());
     size_t size = handle.size + NDEV;
     // ignore unloading error, as memory has already been recycled
     if (err != cudaSuccess && err != cudaErrorCudartUnloading) {
@@ -93,6 +95,7 @@ class GPUPooledStorageManager final : public StorageManager {
 };  // class GPUPooledStorageManager
 
 void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
+  MemoryManager mm;
   std::lock_guard<std::mutex> lock(Storage::Get()->GetMutex(Context::kGPU));
   size_t size = handle->size + NDEV;
   auto&& reuse_it = memory_pool_.find(size);
@@ -103,7 +106,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
       ReleaseAll();
 
     void* ret = nullptr;
-    cudaError_t e = cudaMalloc(&ret, size);
+    cudaError_t e = mm.Malloc(&ret, size);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
     }

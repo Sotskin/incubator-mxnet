@@ -52,6 +52,7 @@ class GPUPooledStorageManager final : public StorageManager {
    */
   GPUPooledStorageManager() {
     reserve_ = dmlc::GetEnv("MXNET_GPU_MEM_POOL_RESERVE", 5);
+    swap = Swap::_GetSharedRef();
   }
   /*!
    * \brief Default destructor.
@@ -79,12 +80,13 @@ class GPUPooledStorageManager final : public StorageManager {
     used_memory_ -= size;
   }
 
- private:
   void ReleaseAll();
   // used memory
   size_t used_memory_ = 0;
   // percentage of reserved memory
   int reserve_;
+  // shared pointer for swap
+  std::shared_ptr<Swap> swap;
   // number of devices
   const int NDEV = 32;
   // memory pool

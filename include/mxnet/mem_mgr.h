@@ -1,7 +1,6 @@
 #include <cuda_runtime_api.h>
+#include <iostream>
 #include <stdio.h>
-#include "storage.h"
-#include <vector>
 
 namespace mxnet {
 

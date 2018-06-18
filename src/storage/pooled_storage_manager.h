@@ -111,12 +111,12 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
       LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
     }
     used_memory_ += size;
-    handle->SetDptr(ret);
+    handle->SetDptr(ret, handle->ctx.dev_id);
   } else {
     auto&& reuse_pool = reuse_it->second;
     auto ret = reuse_pool.back();
     reuse_pool.pop_back();
-    handle->SetDptr(ret);
+    handle->SetDptr(ret, handle->ctx.dev_id);
   }
 }
 
@@ -131,7 +131,8 @@ void GPUPooledStorageManager::ReleaseAll() {
   for (auto&& i : memory_pool_) {
     for (auto&& j : i.second) {
       Storage::Handle handle;
-      handle.SetDptr(j);
+      // (Sotskin)No need to swap memories that are about to be released
+      handle.SetDptr(j, -1); 
       handle.size = i.first - NDEV;
       DirectFreeNoLock(handle);
     }

@@ -2,6 +2,7 @@
 #define GPU_SWAP_HISTORY_H_
 
 #include <chrono>
+#include <map>
 #include <vector>
 #include <thread>
 #include <mutex>
@@ -28,8 +29,11 @@ public:
     size_t size;
   };
 
-  std::vector<std::vector<MemRecord> > 
-      history = std::vector<std::vector<MemRecord> >(NUMBER_OF_GPU);
+  std::vector<std::vector<MemRecord> > history 
+      = std::vector<std::vector<MemRecord> >(NUMBER_OF_GPU);
+  std::vector<std::map<handle_id_t, std::vector<MemRecord> > > sorted_history
+      = std::vector<std::map<handle_id_t, std::vector<MemRecord> > >
+      (NUMBER_OF_GPU);
   size_t record_idx;
 
   ~MemHistory();

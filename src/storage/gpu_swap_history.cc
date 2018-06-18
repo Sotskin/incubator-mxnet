@@ -34,6 +34,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
         (high_resolution_clock::now() - begin_time_)).count();
     MemRecord record = {handle_id, operation_id, t, size};
     history[device].push_back(record);
+    sorted_history[device][handle_id].push_back(record);
   }
   record_idx++;
 }

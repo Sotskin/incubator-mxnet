@@ -65,8 +65,8 @@ class Storage {
       Swap::Get()->DelAddr(id_, size);
     }
 
-    void SetDptr(void* ptr) {
-      Swap::Get()->SetAddr(id_, ptr, size);
+    void SetDptr(void* ptr, int dev_id) {
+      Swap::Get()->SetAddr(id_, ptr, size, dev_id);
       dptr_ = ptr;
     }
 

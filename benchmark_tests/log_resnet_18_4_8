@@ -1,0 +1,24 @@
+================ Test Begin ====================
+['benchmark.py', '--num_layers=18', '--batch_size', '4', '--wide_scale=8', '--num_loop=6', 'resnet']
+('Testing model:', 'resnet')
+[512, 512, 1024, 2048, 4096]
+['data', 'conv0_weight', 'stage1_unit1_conv1_weight', 'stage1_unit1_conv2_weight', 'stage1_unit1_sc_weight', 'stage1_unit2_conv1_weight', 'stage1_unit2_conv2_weight', 'stage2_unit1_conv1_weight', 'stage2_unit1_conv2_weight', 'stage2_unit1_sc_weight', 'stage2_unit2_conv1_weight', 'stage2_unit2_conv2_weight', 'stage3_unit1_conv1_weight', 'stage3_unit1_conv2_weight', 'stage3_unit1_sc_weight', 'stage3_unit2_conv1_weight', 'stage3_unit2_conv2_weight', 'stage4_unit1_conv1_weight', 'stage4_unit1_conv2_weight', 'stage4_unit1_sc_weight', 'stage4_unit2_conv1_weight', 'stage4_unit2_conv2_weight', 'fc1_weight', 'softmax_label']
+['softmax_output']
+Initialize Swap
+('Num arguments: ', 24)
+('Argument grads: ', ['stage1_unit1_conv2_weight', 'stage1_unit1_sc_weight', 'stage2_unit1_sc_weight', 'stage4_unit1_conv2_weight', 'conv0_weight', 'stage2_unit2_conv1_weight', 'stage3_unit2_conv1_weight', 'stage4_unit2_conv1_weight', 'stage1_unit2_conv1_weight', 'fc1_weight', 'stage2_unit1_conv1_weight', 'stage3_unit1_conv2_weight', 'stage1_unit1_conv1_weight', 'stage3_unit1_conv1_weight', 'stage3_unit1_sc_weight', 'stage2_unit2_conv2_weight', 'stage4_unit2_conv2_weight', 'stage3_unit2_conv2_weight', 'stage1_unit2_conv2_weight', 'stage2_unit1_conv2_weight', 'stage4_unit1_conv1_weight', 'stage4_unit1_sc_weight'])
+=> loop 0
+=> loop duration 1.717914
+=> loop 1
+=> loop duration 0.361478
+=> loop 2
+=> loop duration 0.371078
+=> loop 3
+=> loop duration 0.362829
+=> loop 4
+=> loop duration 0.367758
+=> loop 5
+=> loop duration 0.370131
+duration 3.551292, average 0.591865, std 0.503597
+================ Test Finished ====================
+Destroy Swap

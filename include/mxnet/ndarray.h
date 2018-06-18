@@ -785,15 +785,18 @@ class NDArray {
         : static_data(true), delay_alloc(false) {
       CHECK(storage_type == kDefaultStorage);
       var = Engine::Get()->NewVariable();
+      int real_dev_id = 0;
       if (data.dev_mask() == cpu::kDevMask) {
         ctx = Context::CPU();
+        real_dev_id = -1;
       } else {
         CHECK_EQ(data.dev_mask(), gpu::kDevMask);
         ctx = Context::GPU(dev_id);
+        real_dev_id c= dev_id;
       }
       // init shandle
       shandle.ctx = ctx;
-      shandle.SetDptr(data.dptr_);
+      shandle.SetDptr(data.dptr_, real_dev_id);
       shandle.size = data.shape_.Size() * mshadow::mshadow_sizeof(data.type_flag_);
       storage_shape = data.shape_;
     }
@@ -837,23 +840,26 @@ class NDArray {
       CHECK_NE(storage_type, kDefaultStorage);
       // init var
       var = Engine::Get()->NewVariable();
+      int real_dev_id = 0;
       // init ctx
       if (data.dev_mask() == cpu::kDevMask) {
         ctx = Context::CPU();
+        real_dev_id = -1;
       } else {
         CHECK_EQ(data.dev_mask(), gpu::kDevMask);
         ctx = Context::GPU(dev_id);
+        real_dev_id = dev_id;
       }
       // init shandle
       shandle.ctx = ctx;
-      shandle.SetDptr(data.dptr_);
+        shandle.SetDptr(data.dptr_, real_dev_id);
       shandle.size = data.shape_.Size() * mshadow_sizeof(data.type_flag_);
       storage_shape = data.shape_;
       // init aux handles
       for (const auto &aux : aux_data) {
         Storage::Handle aux_handle;
         aux_handle.ctx = ctx;
-        aux_handle.SetDptr(aux.dptr_);
+        aux_handle.SetDptr(aux.dptr_, real_dev_id);
         aux_handle.size = aux.shape_.Size() * mshadow_sizeof(aux.type_flag_);
         aux_handles.push_back(aux_handle);
         aux_types.emplace_back(aux.type_flag_);

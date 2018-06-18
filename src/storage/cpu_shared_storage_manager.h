@@ -204,7 +204,7 @@ void CPUSharedStorageManager::Alloc(Storage::Handle* handle) {
   if (is_new) {
     new (ptr) std::atomic<int>(1);
   }
-  handle->SetDptr(static_cast<char*>(ptr) + alignment_);
+  handle->SetDptr(static_cast<char*>(ptr) + alignment_, -1);
   pool_[handle->GetDptr()] = *handle;
 }
 

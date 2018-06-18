@@ -1,6 +1,7 @@
-#include <mxnet/swap.h>
-#include <memory>
 #include <iostream>
+#include <memory>
+#include <mxnet/swap.h>
+#include <mxnet/gpu_swap_history.h>
 
 namespace mxnet{
 
@@ -16,7 +17,7 @@ std::shared_ptr<Swap> Swap::_GetSharedRef() {
 
 Swap::Swap(){
   std::cout << "Initialize Swap" <<std::endl;
-  // Do nothing for now
+  mhistory_ = MemHistory::_GetSharedRef();
 }
 
 Swap::~Swap(){
@@ -35,18 +36,24 @@ void Swap::SwapIn(SwapInfo *info){
 void* Swap::GetAddr(handle_id_t handle_id, size_t size){
   pthread_rwlock_rdlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
+  if (info->device_id != -1) {
+    mhistory_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, size);
+  }
   pthread_rwlock_unlock(&swap_lock_);
   return info->dptr;
 }
 
-void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size){
+void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id){
+  if (dev_id != -1){
+    mhistory_->PutRecord(handle_id, dev_id, MemHistory::SET_ADDR, size);
+  }
   if (dptr == nullptr) {
     return;
   }
   pthread_rwlock_wrlock(&swap_lock_);
   auto iter = swap_info_.find(handle_id);
   if (iter == swap_info_.end()){
-    SwapInfo* info = new SwapInfo{handle_id, true, 0, dptr, nullptr, size};
+    SwapInfo* info = new SwapInfo{handle_id, true, dev_id, dptr, nullptr, size};
     swap_info_[handle_id] = info;
   } else {
     std::cout << "SetAddr duplicated id " << handle_id << std::endl;
@@ -58,6 +65,9 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size){
 void Swap::DelAddr(handle_id_t handle_id, size_t size){
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
+  if (info->device_id != -1) {
+    mhistory_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, size);
+  }
   delete info;
   swap_info_.erase(handle_id);
   pthread_rwlock_unlock(&swap_lock_);

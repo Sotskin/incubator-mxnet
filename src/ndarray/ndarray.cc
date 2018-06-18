@@ -195,7 +195,8 @@ NDArray NDArray::MKLDNNDataReshape(const TShape &shape) const {
     // when it's destroyed.
     auto tmp = std::shared_ptr<mkldnn::memory>(def_mem, [](mkldnn::memory *mem){});
     ret.ptr_->mkl_mem_.reset(new MKLDNNMemory(tmp));
-    ret.ptr_->shandle.SetDptr(def_mem->get_data_handle());
+    // (Sotskin)Using MKLDNN = Using CPU Memory
+    ret.ptr_->shandle.SetDptr(def_mem->get_data_handle(), -1);
     ret.ptr_->shandle.size = def_mem->get_primitive_desc().get_size();
     ret.ptr_->delay_alloc = false;
     ret.ptr_->static_data = true;

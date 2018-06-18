@@ -19,4 +19,4 @@ cudaError_t MemoryManager::Free(void* devptr) {
   return cudaFree(devptr);
 }
 
-}
+} //namespace mxnet

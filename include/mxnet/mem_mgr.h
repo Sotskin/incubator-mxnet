@@ -12,5 +12,5 @@ class MemoryManager {
     cudaError_t Free(void* devptr);
 };
 
-}
+} //namespace mxnet
 

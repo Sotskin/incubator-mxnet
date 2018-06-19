@@ -26,12 +26,16 @@ public:
     handle_id_t handle_id;
     record_t operation_id;
     timestamp_t time;
+    size_t record_step;
     size_t size;
   };
+  static bool CompareByStep(const MemRecord &r1, const MemRecord &r2) {
+    return r1.record_step < r2.record_step;
+  }
 
-  std::vector<std::vector<MemRecord> > history 
-      = std::vector<std::vector<MemRecord> >(NUMBER_OF_GPU);
-  std::vector<std::map<handle_id_t, std::vector<MemRecord> > > sorted_history
+  //std::vector<std::vector<MemRecord> > history 
+  //    = std::vector<std::vector<MemRecord> >(NUMBER_OF_GPU);
+  std::vector<std::map<handle_id_t, std::vector<MemRecord> > > history
       = std::vector<std::map<handle_id_t, std::vector<MemRecord> > >
       (NUMBER_OF_GPU);
   size_t record_idx;
@@ -46,6 +50,7 @@ public:
   void PrintRecord(int device);
   void StartIteration();
   void StopIteration();
+  MemRecord find(std::vector<MemRecord> v, size_t target_step);
 
 private:
   MemHistory();

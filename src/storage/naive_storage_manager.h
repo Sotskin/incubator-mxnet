@@ -58,7 +58,7 @@ class NaiveStorageManager final : public StorageManager {
 
 template <class DeviceStorage>
 void NaiveStorageManager<DeviceStorage>::Alloc(Storage::Handle* handle) {
-  handle->SetDptr(DeviceStorage::Alloc(handle->size));
+  handle->SetDptr(DeviceStorage::Alloc(handle->size), -1);
 }
 
 template <class DeviceStorage>

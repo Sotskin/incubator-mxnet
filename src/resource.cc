@@ -48,9 +48,9 @@ struct SpaceAllocator {
   Storage::Handle host_handle;
 
   SpaceAllocator() {
-    handle.SetDptr(nullptr);
+    handle.SetDptr(nullptr, ctx.dev_id);
     handle.size = 0;
-    host_handle.SetDptr(nullptr);
+    host_handle.SetDptr(nullptr, ctx.dev_id);
     host_handle.size = 0;
   }
   inline void ReleaseAll() {

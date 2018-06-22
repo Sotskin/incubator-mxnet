@@ -3,6 +3,16 @@
 
 namespace mxnet {
 
+MemoryManager* MemoryManager::Get() {
+  static MemoryManager* mm = _GetSharedRef().get();
+  return mm;
+}
+
+std::shared_ptr<MemoryManager> MemoryManager::_GetSharedRef() {
+  static std::shared_ptr<MemoryManager> inst(new MemoryManager());
+  return inst;
+} 
+
 MemoryManager::MemoryManager() {
   std::cout << "Initialize Memory Allocator" << std::endl;
 }

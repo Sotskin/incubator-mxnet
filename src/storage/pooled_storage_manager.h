@@ -53,6 +53,7 @@ class GPUPooledStorageManager final : public StorageManager {
    */
   GPUPooledStorageManager() {
     reserve_ = dmlc::GetEnv("MXNET_GPU_MEM_POOL_RESERVE", 5);
+    memory_manager_ = MemoryManager::_GetSharedRef();
   }
   /*!
    * \brief Default destructor.
@@ -70,11 +71,8 @@ class GPUPooledStorageManager final : public StorageManager {
   }
 
  private:
-  MemoryManager mm;
-
- private:
   void DirectFreeNoLock(Storage::Handle handle) {
-    cudaError_t err = mm.Free(handle.GetDptr());
+    cudaError_t err = memory_manager_.get()->Free(handle.GetDptr());
     size_t size = handle.size + NDEV;
     // ignore unloading error, as memory has already been recycled
     if (err != cudaSuccess && err != cudaErrorCudartUnloading) {
@@ -91,6 +89,8 @@ class GPUPooledStorageManager final : public StorageManager {
   int reserve_;
   // number of devices
   const int NDEV = 32;
+  //shared pointer for memory manager
+  std::shared_ptr<MemoryManager> memory_manager_;
   // memory pool
   std::unordered_map<size_t, std::vector<void*>> memory_pool_;
   DISALLOW_COPY_AND_ASSIGN(GPUPooledStorageManager);
@@ -107,7 +107,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
       ReleaseAll();
 
     void* ret = nullptr;
-    cudaError_t e = mm.Malloc(&ret, size);
+    cudaError_t e = memory_manager_.get()->Malloc(&ret, size);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
     }

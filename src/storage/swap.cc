@@ -1,6 +1,8 @@
 #include <iostream>
 #include <memory>
 #include <mxnet/swap.h>
+#include <dmlc/logging.h>
+#include "../common/cuda_utils.h"
 
 namespace mxnet{
 
@@ -17,7 +19,7 @@ std::shared_ptr<Swap> Swap::_GetSharedRef() {
 Swap::Swap(){
   std::cout << "Initialize Swap" <<std::endl;
   mhistory_ = MemHistory::_GetSharedRef();
-  swap_lock = PTHREAD_RWLOCK_INITIALIZER;
+  swap_lock_ = PTHREAD_RWLOCK_INITIALIZER;
   for (int i = 0; i < NUMBER_OF_GPU; ++i){
     locks_[i] = PTHREAD_RWLOCK_INITIALIZER;
     free_memory_.push_back(0);
@@ -29,7 +31,8 @@ Swap::~Swap(){
 }
 
 void Swap::SwapOut(unsigned required_memory, int device){
-  UpdateFree();
+  UpdateFree(device);
+#if MXNET_USE_CUDA
   if (free_memory_[device] > required_memory) {
     return;
   }
@@ -39,14 +42,14 @@ void Swap::SwapOut(unsigned required_memory, int device){
         it = swap_info_.begin();
         it != swap_info_.end();
         ++it) {
-      if (it->second->device_id == device && it->second->swapped_in = true) {
+      if (it->second->device_id == device && it->second->swapped_in == true) {
         handle_ids.push_back(it->first);
       }   
     }
     handle_id_t victim = MemHistory::Get()->DecideVictim(handle_ids, device);
     SwapInfo *target = swap_info_[victim];
     if(target->cpu_address == nullptr) {
-      target->cpu_adress = new char[int(target->size)];
+      target->cpu_address = new char[int(target->size)];
     }
     CHECK(target->swapped_in);
     CHECK(target->dptr != nullptr);
@@ -56,15 +59,17 @@ void Swap::SwapOut(unsigned required_memory, int device){
           cudaMemcpyDeviceToHost));
     CUDA_CALL(cudaFree(target->dptr));
   }
+#endif // MXNET_USE_CUDA
 }
 
 void Swap::SwapIn(SwapInfo *info){
+#if MXNET_USE_CUDA
   CHECK(!info->swapped_in);
   CHECK(info->cpu_address != nullptr);
   int old_device = 0;
   CUDA_CALL(cudaGetDevice(&old_device));
-  SwapOut(info->size, info->device);
-  CUDA_CALL(cudaSetDevice(info->device));
+  SwapOut(info->size, info->device_id);
+  CUDA_CALL(cudaSetDevice(info->device_id));
   cudaError_t e = cudaMalloc(&(info->dptr), info->size);
   if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
     LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
@@ -73,6 +78,7 @@ void Swap::SwapIn(SwapInfo *info){
         cudaMemcpyHostToDevice));
   info->swapped_in = true;
   CUDA_CALL(cudaSetDevice(old_device));
+#endif // MXNET_USE_CUDA
 }
 
 void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id){
@@ -118,10 +124,12 @@ void* Swap::GetAddr(handle_id_t handle_id, size_t size){
 
 int Swap::UpdateFree(int device){
   // TODO(sotskin) all CUDA_CALL shall be replaced by custom mm call
+#if MXNET_USE_CUDA
   size_t free_mem, total;
   CUDA_CALL(cudaSetDevice(device));
-  CUDA_CALL(cudaMemGetInfo(&free, &total));
-  free_memory_[device] = free;
+  CUDA_CALL(cudaMemGetInfo(&free_mem, &total));
+  free_memory_[device] = free_mem;
+#endif // MXNET_USE_CUDA
   return device;
 }
 

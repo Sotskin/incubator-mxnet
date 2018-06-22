@@ -5,6 +5,9 @@
 #include <unordered_map>
 #include <memory>
 #include <mxnet/gpu_swap_history.h>
+#if MXNET_USE_CUDA
+#include "./cuda_runtime.h"
+#endif // MXNET_USE_CUDA
 
 namespace mxnet {
 

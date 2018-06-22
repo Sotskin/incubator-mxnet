@@ -9,6 +9,7 @@ namespace mxnet {
 
 using handle_id_t = unsigned long long;
 using timestamp_t = unsigned long long;
+using timestep_t = unsigned long long;
 
 struct SwapInfo {
   handle_id_t handle_id;

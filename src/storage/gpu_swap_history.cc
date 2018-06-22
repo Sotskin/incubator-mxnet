@@ -41,6 +41,8 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
   record_idx++;
 }
 
+// optimal algorithm: assume iterations remain the same; choose the handle
+// whose next reference is furthest in the future as victim.
 handle_id_t MemHistory::DecideVictim(std::vector<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
 
@@ -62,33 +64,34 @@ handle_id_t MemHistory::DecideVictim(std::vector<handle_id_t> handles, int devic
 
 void MemHistory::PrintRecord(int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
-  std::ofstream f;
-  f.open("history_log.txt");
-  std::vector<MemRecord> v;
+  std::ofstream fp;
+  fp.open("history_log.txt");
+  std::vector<MemRecord> records;
   std::map<handle_id_t, std::vector<MemRecord> >::iterator it;
   for(it = history[device].begin(); it != history[device].end(); ++it) {
     for(size_t i = 0; i < (it->second).size(); i++) {
-      v.push_back(it->second[i]);
+      records.push_back(it->second[i]);
     }
   }
-  std::sort(v.begin(), v.end(), MemHistory::CompareByStep);
-  for(size_t i = 0; i < v.size(); i++) {
-    MemRecord r = v[i];
-    f << "No." << i << std::endl;
-    f << "Step: " << r.record_step << std::endl;
-    f << "Handle ID: " << r.handle_id << std::endl;
-    f << "Operation: ";
+  std::sort(records.begin(), records.end(), MemHistory::CompareByStep);
+  for(size_t i = 0; i < records.size(); i++) {
+    MemRecord r = records[i];
+    fp << "No." << i << std::endl;
+    fp << "Step: " << r.record_step << std::endl;
+    fp << "Handle ID: " << r.handle_id << std::endl;
+    fp << "Operation: ";
     if(r.operation_id == GET_ADDR)
-      f << "get";
+      fp << "get";
     else if(r.operation_id == SET_ADDR)
-      f << "set";
+      fp << "set";
     else
-      f << "del";
-    f << std::endl;
-    f << "Time: " << r.time << std::endl;
-    f << "Size: " << r.size << std::endl;
-    f << std::endl;
+      fp << "del";
+    fp << std::endl;
+    fp << "Time: " << r.time << std::endl;
+    fp << "Size: " << r.size << std::endl;
+    fp << std::endl;
   }
+  fp.close();
 }
 
 void MemHistory::StartIteration() {
@@ -105,29 +108,29 @@ void MemHistory::StopIteration() {
   ++iteration_idx_;
 }
 
-MemHistory::MemRecord MemHistory::find(std::vector<MemHistory::MemRecord> v,
-    size_t step) {
-  size_t i = 0;
-  size_t j = v.size() - 1;
-  while(i < j) {
-    if(i == v.size()-1)
-      return v[i];
-    if(j == 0)
-      return v[j];
-    size_t mid = (i + j) / 2;
-    size_t c_step = v[mid].record_step;
-    bool right_before = c_step < step && v[mid+1].record_step > step;
+MemHistory::MemRecord MemHistory::find(std::vector<MemHistory::MemRecord> 
+    records, size_t step) {
+  size_t start = 0;
+  size_t end = records.size() - 1;
+  while(start < end) {
+    if(start == records.size()-1)
+      return records[start];
+    if(end == 0)
+      return records[end];
+    size_t mid = (start + end) / 2;
+    size_t c_step = records[mid].record_step;
+    bool right_before = c_step < step && records[mid+1].record_step > step;
     if(c_step == step || right_before) {
-      return v[mid+1];
+      return records[mid+1];
     } else if(c_step < step) {
-      i = mid + 1;
+      start = mid + 1;
     } else{
-      j = mid - 1;
+      end = mid - 1;
     }
   }
   // suppress warning of reaching end of non-void function
   // but actually should not reach here
-  return v[0];
+  return records[0];
 }
 
 

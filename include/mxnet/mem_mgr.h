@@ -66,8 +66,9 @@ class MemoryManager {
     static MemoryManager* Get();
     static std::shared_ptr<MemoryManager> _GetSharedRef();
     ~MemoryManager();
-    cudaError_t Malloc(void** devptr, size_t size);
-    cudaError_t Free(void* devptr);
+    cudaError_t Malloc(void** devptr, size_t size, int deviceIdx);
+    cudaError_t Free(void* devptr, int deviceIdx);
+    cudaError_t Memcpy(void* dst, const void* src, size_t count, enum cudaMemcpyKind kind);
 
   private:
     MemoryManager();

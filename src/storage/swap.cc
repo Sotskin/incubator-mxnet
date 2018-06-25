@@ -94,7 +94,7 @@ void Swap::DelAddr(handle_id_t handle_id, size_t size){
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
-    mhistory_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, size);
+    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, size);
     if (swappable_handles_[device_id].find(handle_id) 
         != swappable_handles_.end()){
       swappable_handles_[device_id].erase(handle_id);

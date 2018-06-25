@@ -6,7 +6,7 @@
 
 namespace mxnet {
 
-const int FREELISTSIZE = 32;
+const int FREELISTSIZE = 21;
 
 typedef enum {
   memStatus_Sucess,
@@ -24,12 +24,17 @@ inline char* memGetStatusString(memStatus_t status) {
   }
 }
 
+
+//min allocation size = 2^7 = 128 bytes
 inline int getFreeListIdx(size_t size) {
   int idx = 0;
-  while ((idx < FREELISTSIZE - 1) && (size > 1)) {
+  while (size > 0) {
     size >>= 1;
     idx++;
   }  
+  idx -= 7;
+  idx = (idx < 0) ? 0 : idx;
+  idx = (idx > 19) ? 19 : idx;
   return idx;
 }
 
@@ -66,7 +71,7 @@ class MemoryManager {
     static MemoryManager* Get();
     static std::shared_ptr<MemoryManager> _GetSharedRef();
     ~MemoryManager();
-    cudaError_t Malloc(void** devptr, size_t size, int deviceIdx);
+    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
     cudaError_t Free(void* devptr, int deviceIdx);
     cudaError_t Memcpy(void* dst, const void* src, size_t count, enum cudaMemcpyKind kind);
 

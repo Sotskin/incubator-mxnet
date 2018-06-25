@@ -74,6 +74,7 @@ class MemoryManager {
     cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
     cudaError_t Free(void* devptr, int deviceIdx);
     cudaError_t Memcpy(void* dst, const void* src, size_t count, enum cudaMemcpyKind kind);
+    cudaError_t MemGetInfo(size_t* total, size_t* free);   
 
   private:
     MemoryManager();

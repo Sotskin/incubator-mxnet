@@ -128,7 +128,7 @@ int Swap::UpdateFree(int device){
   // TODO(sotskin) all CUDA_CALL shall be replaced by custom mm call
 #if MXNET_USE_CUDA
   size_t free_mem, total;
-  memory_manager_->cudaMemGetInfo(device, &free_mem, &total);
+  memory_manager_->MemGetInfo(device, &free_mem, &total);
   free_memory_[device] = free_mem;
 #endif // MXNET_USE_CUDA
   return device;

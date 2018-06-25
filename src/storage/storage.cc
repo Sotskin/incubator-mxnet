@@ -61,9 +61,10 @@ class StorageImpl : public Storage {
         break;
       case Context::kGPU: {
 #if MXNET_USE_CUDA
-          if (num_gpu_device > 0) {
-            CUDA_CALL(cudaSetDevice(ctx.real_dev_id()));
-          }
+          // (sotskin)Set Device is no longer needed
+          // if (num_gpu_device > 0) {
+          //   CUDA_CALL(cudaSetDevice(ctx.real_dev_id()));
+          // }
 #endif  // MXNET_USE_CUDA
           break;
         }

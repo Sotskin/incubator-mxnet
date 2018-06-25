@@ -4,6 +4,7 @@
 #include <vector>
 #include <set>
 #include <mxnet/gpu_swap_history.h>
+#include <mxnet/gpu_swap_prefetch.h>
 
 namespace mxnet {
 

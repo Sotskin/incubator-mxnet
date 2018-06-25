@@ -90,11 +90,11 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id){
   pthread_rwlock_unlock(&swap_lock_);
 }
 
-void Swap::DelAddr(handle_id_t handle_id, size_t size){
+void Swap::DelAddr(handle_id_t handle_id){
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
-    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, size);
+    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
     if (swappable_handles_[device_id].find(handle_id) 
         != swappable_handles_.end()){
       swappable_handles_[device_id].erase(handle_id);
@@ -109,11 +109,11 @@ void Swap::DelAddr(handle_id_t handle_id, size_t size){
 }
 
 // TODO(sotskin) compatibility for MKLMEM
-void* Swap::GetAddr(handle_id_t handle_id, size_t size){
+void* Swap::GetAddr(handle_id_t handle_id){
   pthread_rwlock_rdlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
-    mhistory_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR, size);
+    mhistory_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR, info->size);
   }
 #if MXNET_USE_CUDA
   if (!info->swapped_in) {

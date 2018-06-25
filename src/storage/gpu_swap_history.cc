@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <unordered_set>
 #include <vector>
 #include <set>
 #include <mxnet/gpu_swap_history.h>
@@ -43,13 +44,11 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
 
 // optimal algorithm: assume iterations remain the same; choose the handle
 // whose next reference is furthest in the future as victim.
-handle_id_t MemHistory::DecideVictim(std::vector<handle_id_t> handles, int device) {
+handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
-
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
-  std::vector<handle_id_t>::iterator it;
-  for(it = handles.begin(); it != handles.end(); ++it) {
+  for(auto it = handles.begin(); it != handles.end(); ++it) {
     handle_id_t id = *it;
     MemHistory::MemRecord r = 
         MemHistory::find(history[device][id], record_idx);
@@ -58,7 +57,6 @@ handle_id_t MemHistory::DecideVictim(std::vector<handle_id_t> handles, int devic
       latest_id = r.handle_id;
     }
   }
-
   return latest_id;
 }
 

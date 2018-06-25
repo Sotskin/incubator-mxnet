@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include <mxnet/gpu_swap_history.h>
+#include <mxnet/mem_mgr.h>
 #if MXNET_USE_CUDA
 #include "./cuda_runtime.h"
 #endif // MXNET_USE_CUDA
@@ -39,8 +40,10 @@ public:
 private:
   Swap();
   std::unordered_map<handle_id_t, SwapInfo*> swap_info_;
-  std::shared_ptr<MemHistory> mhistory_;
+  std::unordered_set<handle_id_t> swappable_handles_[NUMBER_OF_GPU];
   std::vector<size_t> free_memory_;
+  std::shared_ptr<MemHistory> memory_history_;
+  std::shared_ptr<MemoryManager> memory_manager_;
   pthread_rwlock_t swap_lock_;
   pthread_rwlock_t locks_[NUMBER_OF_GPU];
 }; // Class Swap

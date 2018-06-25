@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <map>
+#include <unordered_set>
 #include <vector>
 #include <thread>
 #include <mutex>
@@ -48,7 +49,7 @@ public:
   bool IterationStarted() {return iteration_started_;}
   bool IsRecording() {return is_recording_;}
   void PutRecord(handle_id_t handle_id, int device, record_t type, size_t size);
-  handle_id_t DecideVictim(std::vector<handle_id_t> handles, int device);
+  handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device);
   void PrintRecord(int device);
   void StartIteration();
   void StopIteration();

@@ -31,15 +31,13 @@ Swap::~Swap() {
   std::cout << "Destroy Swap" <<std::endl;
 }
 
-void Swap::SwapOut(unsigned required_memory, int device) {
-  //FIXME(Sotskin): change this to use tryalloc from memory manager.
-  UpdateFree(device);
-  if (free_memory_[device] > required_memory) {
+void Swap::SwapOut(unsigned required_memory, int device_id) {
+  if (memory_manager_->TryAllocate(device_id, required_memory)) {
     return;
   }
-  while (free_memory_[device] < required_memory) {
+  while (!memory_manager_->TryAllocate(device_id, required_memory)) {
     handle_id_t victim = 
-      memory_history_->DecideVictim(swappable_handles_[device], device);
+      memory_history_->DecideVictim(swappable_handles_[device_id], device_id);
     SwapInfo *target = swap_info_[victim];
     if(target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
@@ -47,11 +45,10 @@ void Swap::SwapOut(unsigned required_memory, int device) {
     CHECK(target->swapped_in);
     CHECK(target->dptr != nullptr);
     target->swapped_in = false;
-    swappable_handles_[device].erase(victim);
-    memory_manager_->Memcpy(device, target->cpu_address, target->dptr,
+    swappable_handles_[device_id].erase(victim);
+    memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr,
         target->size, cudaMemcpyDeviceToHost);
-    memory_manager_->Free(target->dptr, device);
-    UpdateFree(device);
+    memory_manager_->Free(target->dptr, device_id);
   }
 }
 
@@ -59,19 +56,19 @@ void Swap::SwapIn(SwapInfo *info) {
   CHECK(!info->swapped_in);
   CHECK(info->cpu_address != nullptr);
   SwapOut(info->size, info->device_id);
-  e = memory_manager_->Malloc(&(info->dptr), info->size);
+  cudaError_t e = memory_manager_->Malloc(info->dptr, info->size, info->device_id);
   if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
     LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
   }
-  memory_manager_->Memcpy(device, info->dptr, info->cpu_address, info->size,
+  memory_manager_->Memcpy(info->device_id, info->dptr, info->cpu_address, info->size,
       cudaMemcpyHostToDevice);
   info->swapped_in = true;
-  swappable_handles_[old_device_].insert(info->handle_id);
+  swappable_handles_[info->device_id].insert(info->handle_id);
 }
 
-void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id) {
-  if (dev_id != -1){
-    memory_history_->PutRecord(handle_id, dev_id, MemHistory::SET_ADDR, size);
+void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id) {
+  if (device_id != -1){
+    memory_history_->PutRecord(handle_id, device_id, MemHistory::SET_ADDR, size);
   }
   if (dptr == nullptr) {
     return;
@@ -79,10 +76,10 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id) {
   pthread_rwlock_wrlock(&swap_lock_);
   auto iter = swap_info_.find(handle_id);
   if (iter == swap_info_.end()){
-    SwapInfo* info = new SwapInfo{handle_id, true, dev_id, dptr, nullptr, size};
+    SwapInfo* info = new SwapInfo{handle_id, true, device_id, dptr, nullptr, size};
     swap_info_[handle_id] = info;
-    if (dev_id != -1){
-      swappable_handles_[dev_id].insert(handle_id);
+    if (device_id != -1){
+      swappable_handles_[device_id].insert(handle_id);
     }
   } else {
     std::cout << "SetAddr duplicated id " << handle_id << std::endl;
@@ -96,13 +93,13 @@ void Swap::DelAddr(handle_id_t handle_id) {
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
-    if (swappable_handles_[device_id].find(handle_id) 
-        != swappable_handles_.end()) {
-      swappable_handles_[device_id].erase(handle_id);
+    if (swappable_handles_[info->device_id].find(handle_id) 
+        != swappable_handles_[info->device_id].end()) {
+      swappable_handles_[info->device_id].erase(handle_id);
     }
   }
-  if (iter->second->cpu_address != nullptr) {
-    delete iter->second->cpu_address;
+  if (info->cpu_address != nullptr) {
+    delete info->cpu_address;
   }
   delete info;
   swap_info_.erase(handle_id);
@@ -114,7 +111,7 @@ void* Swap::GetAddr(handle_id_t handle_id) {
   pthread_rwlock_rdlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
-    mhistory_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR, info->size);
+    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR, info->size);
   }
 #if MXNET_USE_CUDA
   if (!info->swapped_in) {

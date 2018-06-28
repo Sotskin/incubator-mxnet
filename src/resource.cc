@@ -48,9 +48,9 @@ struct SpaceAllocator {
   Storage::Handle host_handle;
 
   SpaceAllocator() {
-    handle.SetDptr(nullptr, ctx.dev_id);
+    handle.SetDptr(nullptr, ctx.dev_type == Context::kGPU ? ctx.dev_id : -1);
     handle.size = 0;
-    host_handle.SetDptr(nullptr, ctx.dev_id);
+    host_handle.SetDptr(nullptr, ctx.dev_type == Context::kGPU ? ctx.dev_id : -1);
     host_handle.size = 0;
   }
   inline void ReleaseAll() {

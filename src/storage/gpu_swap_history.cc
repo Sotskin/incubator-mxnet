@@ -48,8 +48,7 @@ handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, in
   std::lock_guard<std::mutex> lock(mutex_[device]);
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
-  for(auto it = handles.begin(); it != handles.end(); ++it) {
-    handle_id_t id = *it;
+  for(auto &id : handles) {
     MemHistory::MemRecord r = 
         MemHistory::find(history[device][id], record_idx);
     if(r.record_step > latest_step) {

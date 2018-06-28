@@ -16,7 +16,7 @@ std::shared_ptr<Swap> Swap::_GetSharedRef() {
   return inst;
 }
 
-Swap::Swap(){
+Swap::Swap() {
   std::cout << "Initialize Swap" <<std::endl;
   memory_history_ = MemHistory::_GetSharedRef();
   memory_manager_ = MemoryManager::_GetSharedRef();
@@ -27,11 +27,12 @@ Swap::Swap(){
   }
 }
 
-Swap::~Swap(){
+Swap::~Swap() {
   std::cout << "Destroy Swap" <<std::endl;
 }
 
-void Swap::SwapOut(unsigned required_memory, int device){
+void Swap::SwapOut(unsigned required_memory, int device) {
+  //FIXME(Sotskin): change this to use tryalloc from memory manager.
   UpdateFree(device);
   if (free_memory_[device] > required_memory) {
     return;
@@ -54,7 +55,7 @@ void Swap::SwapOut(unsigned required_memory, int device){
   }
 }
 
-void Swap::SwapIn(SwapInfo *info){
+void Swap::SwapIn(SwapInfo *info) {
   CHECK(!info->swapped_in);
   CHECK(info->cpu_address != nullptr);
   SwapOut(info->size, info->device_id);
@@ -68,7 +69,7 @@ void Swap::SwapIn(SwapInfo *info){
   swappable_handles_[old_device_].insert(info->handle_id);
 }
 
-void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id){
+void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id) {
   if (dev_id != -1){
     memory_history_->PutRecord(handle_id, dev_id, MemHistory::SET_ADDR, size);
   }
@@ -90,7 +91,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id){
   pthread_rwlock_unlock(&swap_lock_);
 }
 
-void Swap::DelAddr(handle_id_t handle_id){
+void Swap::DelAddr(handle_id_t handle_id) {
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
@@ -109,7 +110,7 @@ void Swap::DelAddr(handle_id_t handle_id){
 }
 
 // TODO(sotskin) compatibility for MKLMEM
-void* Swap::GetAddr(handle_id_t handle_id){
+void* Swap::GetAddr(handle_id_t handle_id) {
   pthread_rwlock_rdlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
@@ -124,8 +125,7 @@ void* Swap::GetAddr(handle_id_t handle_id){
   return info->dptr;
 }
 
-int Swap::UpdateFree(int device){
-  // TODO(sotskin) all CUDA_CALL shall be replaced by custom mm call
+int Swap::UpdateFree(int device) {
 #if MXNET_USE_CUDA
   size_t free_mem, total;
   memory_manager_->MemGetInfo(device, &free_mem, &total);

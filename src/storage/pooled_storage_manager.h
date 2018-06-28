@@ -111,7 +111,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
     size_t free, total;
     memory_manager_->MemGetInfo(device, &free, &total);
     if (free <= total * reserve_ / 100 || size > free - total * reserve_ / 100) {
-      do_reuse = false;
+      do_reuse_= false;
       ReleaseAll();
     }
     swap->SwapOut(size, device);
@@ -132,7 +132,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
 
 void GPUPooledStorageManager::Free(Storage::Handle handle) {
   std::lock_guard<std::mutex> lock(Storage::Get()->GetMutex(Context::kGPU));
-  if (do_reuse) {
+  if (do_reuse_) {
     size_t size = handle.size + NDEV;
     auto&& reuse_pool = memory_pool_[size];
     reuse_pool.push_back(handle.GetDptr());

@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
+#include <unistd.h>
 #include <vector>
 #include <map>
+#include <dmlc/parameter.h>
 #include <dmlc/logging.h>
 #include <mxnet/gpu_swap_history.h>
 #include <mxnet/swap.h>
@@ -38,7 +40,7 @@ void Prefetch::StartPrefetching() {
   start_prefetching_ = false;
   stop_prefetching_ = false;
   for(int device = 0; device < MemHistory::NUMBER_OF_GPU; device++) {
-    prefetcher_[device] = std::thread(&Prefetching, this, device);
+    prefetcher_[device] = std::thread(&Prefetch::Prefetching, this, device);
   }
 }
 
@@ -68,7 +70,7 @@ void Prefetch::HistoryBasedPrefetch(int device) {
   bool not_end = lookahead_pos[device]+1 < history_->ordered_history[device].size();
   bool too_ahead = lookahead_pos[device] - history_->record_idx[device] > steps_ahead_;
   while(not_end && !too_ahead) {
-    MemHistory::MemRecord r = history_->history[devicie][++lookahead_pos[device]];
+    MemHistory::MemRecord r = history_->ordered_history[device][++lookahead_pos[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {
       Swap::Get()->GetAddr(r.handle_id, r.size);
     } else {

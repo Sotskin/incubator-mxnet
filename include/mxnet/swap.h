@@ -31,6 +31,7 @@ public:
   void SetAddr(handle_id_t handle_id, void* dptr, size_t size, int dev_id);
   void DelAddr(handle_id_t handle_id);
   void* GetAddr(handle_id_t handle_id);
+  // Update size of free space for the device.
   int UpdateFree(int device); 
 
 private:

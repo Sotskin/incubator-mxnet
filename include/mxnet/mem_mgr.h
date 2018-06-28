@@ -6,7 +6,7 @@
 
 namespace mxnet {
 
-const int FREELISTSIZE = 21;
+const int FREELISTSIZE_ = 21;
 
 typedef enum {
   memStatus_Sucess,
@@ -32,8 +32,9 @@ inline int getFreeListIdx(size_t size) {
     idx++;
   }  
   idx -= 7;
+  //prevent seg fault if index is out of range
   idx = (idx < 0) ? 0 : idx;
-  idx = (idx > 19) ? 19 : idx;
+  idx = (idx > 20) ? 20 : idx;
   return idx;
 }
 
@@ -47,11 +48,11 @@ class Block {
 
   public:
     Block(char* data, size_t size)
-      : data_(data)
-      , size_(size)
-      , nextBlock_(NULL)
-      , isFree_(true)
-      , isHead_(false) {
+      : data_(data),
+        size_(size),
+        nextBlock_(NULL),
+        isFree_(true),
+        isHead_(false) {
     }
 
     char* getData() { return data_; }
@@ -67,7 +68,7 @@ class Block {
 
 class MemoryManager {
   Block* allocatedList_;
-  Block* freeList_[FREELISTSIZE];
+  Block* freeList_[FREELISTSIZE_];
   std::mutex mutex_;
   public:
     static MemoryManager* Get();

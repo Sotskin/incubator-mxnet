@@ -19,12 +19,12 @@ using handle_id_t = unsigned long long;
 using timestamp_t = unsigned long long;
 using timestep_t = unsigned long long;
 
-const int NUMBER_OF_GPU = 8;
 
 class MemHistory {
 public:
 
   enum record_t {GET_ADDR, SET_ADDR, DEL_ADDR};
+  static const int NUMBER_OF_GPU = 8;
   struct MemRecord {
     handle_id_t handle_id;
     record_t operation_id;
@@ -41,7 +41,9 @@ public:
   std::vector<std::map<handle_id_t, std::vector<MemRecord> > > history
       = std::vector<std::map<handle_id_t, std::vector<MemRecord> > >
       (NUMBER_OF_GPU);
-  size_t record_idx;
+  std::vector<std::vector<MemRecord> > ordered_history =
+      std::vector<std::vector<MemRecord> >(NUMBER_OF_GPU);
+  std::vector<size_t> record_idx = std::vector<size_t>(NUMBER_OF_GPU);
 
   ~MemHistory();
   static MemHistory* Get();
@@ -57,6 +59,7 @@ public:
 
 private:
   MemHistory();
+  //std::vector<std::thread> prefetcher_ = std::vector<std::thread>(NUMBER_OF_GPU);
   bool iteration_started_;
   bool is_recording_;
   size_t iteration_idx_;

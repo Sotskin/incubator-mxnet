@@ -24,7 +24,6 @@ inline char* memGetStatusString(memStatus_t status) {
   }
 }
 
-
 //min allocation size = 2^7 = 128 bytes
 inline int getFreeListIdx(size_t size) {
   int idx = 0;
@@ -62,9 +61,12 @@ class Block {
 
     void setHead() { isHead_ = true; }
     void setNext(Block* b) { nextBlock_ = b; }
+    void setAllocated() { isFree_ = false; }
+    void setFree() { isFree_ = true; }
 };
 
 class MemoryManager {
+  Block* allocatedList_;
   Block* freeList_[FREELISTSIZE];
   std::mutex mutex_;
   public:
@@ -76,6 +78,10 @@ class MemoryManager {
     cudaError_t Memcpy(int deviceId, void* dst, 
                        const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);   
+    bool TryAllocate(int deviceId, size_t size);
+    Block* findFirstFit(int idx, size_t size);
+    Block* allocateBlock(size_t size);
+    void splitAndPlace(Block* b, Block* prev, int idx, size_t size);
 
   private:
     MemoryManager();

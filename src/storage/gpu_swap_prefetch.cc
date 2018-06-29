@@ -19,7 +19,7 @@ Prefetch::Prefetch() {
   steps_ahead_ = dmlc::GetEnv("PREFETCH_STEP_AHEAD", 100);
   history_ = MemHistory::_GetSharedRef();
   for(int i = 0; i < MemHistory::NUMBER_OF_GPU; i++) {
-    lookahead_pos[i] = -1;
+    lookahead_pos_[i] = -1;
   }
 }
 
@@ -67,10 +67,13 @@ void Prefetch::Prefetching(int device) {
 void Prefetch::HistoryBasedPrefetch(int device) {
   pthread_rwlock_rdlock(&swap_lock_);
   //bool has_begun = false;
-  bool not_end = lookahead_pos[device]+1 < history_->ordered_history[device].size();
-  bool too_ahead = lookahead_pos[device] - history_->record_idx[device] > steps_ahead_;
+  bool not_end =
+      lookahead_pos_[device]+1 < history_->ordered_history[device].size();
+  bool too_ahead =
+      lookahead_pos_[device] - history_->record_idx[device] > steps_ahead_;
   while(not_end && !too_ahead) {
-    MemHistory::MemRecord r = history_->ordered_history[device][++lookahead_pos[device]];
+    MemHistory::MemRecord r =
+        history_->ordered_history[device][++lookahead_pos_[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {
       Swap::Get()->GetAddr(r.handle_id, r.size);
     } else {

@@ -25,7 +25,8 @@ private:
   Prefetch();
   void Prefetching(int device);
 
-  std::vector<int> lookahead_pos = std::vector<int>(MemHistory::NUMBER_OF_GPU);
+  std::vector<int> lookahead_pos_ =
+      std::vector<int>(MemHistory::NUMBER_OF_GPU);
   std::vector<std::thread> prefetcher_ =
       std::vector<std::thread>(MemHistory::NUMBER_OF_GPU);
   pthread_rwlock_t swap_lock_;

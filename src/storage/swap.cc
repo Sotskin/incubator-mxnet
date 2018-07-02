@@ -35,6 +35,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
   if (memory_manager_->TryAllocate(device_id, required_memory)) {
     return;
   }
+  std::cout << "SwapOut working " << device_id << " " << required_memory << std::endl;
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
     handle_id_t victim = 
       memory_history_->DecideVictim(swappable_handles_[device_id], device_id);
@@ -53,6 +54,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
 }
 
 void Swap::SwapIn(SwapInfo *info) {
+  std::cout << "SwapIn working " << std::endl;
   CHECK(!info->swapped_in);
   CHECK(info->cpu_address != nullptr);
   SwapOut(info->size, info->device_id);

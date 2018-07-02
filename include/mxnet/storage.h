@@ -62,7 +62,7 @@ class Storage {
     int shared_id{-1};
 
     void Free(){
-      Swap::Get()->DelAddr(id_, size);
+      Swap::Get()->DelAddr(id_);
     }
 
     void SetDptr(void* ptr, int dev_id) {
@@ -71,7 +71,7 @@ class Storage {
     }
 
     void* GetDptr() const {
-      return Swap::Get()->GetAddr(id_, size);
+      return Swap::Get()->GetAddr(id_);
     }
 
 

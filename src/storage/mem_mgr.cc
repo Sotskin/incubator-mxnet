@@ -139,4 +139,4 @@ void MemoryManager::splitAndPlace(Block* b, Block* prev, int idx, size_t size) {
   }
 }
 
-} //namespace mxnet
+} //namespace mxne

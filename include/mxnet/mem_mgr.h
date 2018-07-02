@@ -1,3 +1,6 @@
+#ifndef MXNET_MEM_MGR_H_
+#define MXNET_MEM_MGR_H_
+
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <memory>
@@ -90,3 +93,4 @@ class MemoryManager {
 
 } //namespace mxnet
 
+#endif // MXNET_MEM_MGR_H_

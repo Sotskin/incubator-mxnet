@@ -2,9 +2,22 @@
 #include <cuda_runtime_api.h>
 #include <math.h>
 #include <mxnet/mem_mgr.h>
-#include <../common/cuda_utils.h>
+#include "../common/cuda_utils.h"
 
 namespace mxnet {
+
+#define CUDA_CALL(func) 					 \
+  {								 \
+    cudaError_t e = (func);     				 \
+    CHECK(e == cudaSuccess || e == cudaErrorCudartUnloading)     \
+        << "CUDA: " << cudaGetErrorString(e);                    \
+  }
+
+#define CHECK_CUDA_ERROR()						   \
+  {									   \
+    cudaError_t e = cudaGetLastError();					   \
+    CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);         \
+  }
 
 MemoryManager* MemoryManager::Get() {
   static MemoryManager* mm = _GetSharedRef().get();
@@ -20,22 +33,23 @@ std::shared_ptr<MemoryManager> MemoryManager::_GetSharedRef() {
 MemoryManager::MemoryManager() {
   for (int i = 0; i < FREELISTSIZE_; i++) {
     char* data;
-    size_t size = (size_t)exp2((double)(i + 7);
+    size_t size = (size_t)exp2((double)(i + 7));
     cudaError_t err = cudaMalloc((void**)&data, size);
     if (err != cudaSuccess) {    
       CHECK_CUDA_ERROR(); 
     }
     else {
-      Block b = new block(data, size);
-      freeList_[i] = &b; 
+      Block* b = new Block(data, size);
+      freeList_[i] = b; 
     }   
   }
   usedList_ = NULL;
 }
 
-MemoryManager::~MemoryManager() {
+//MemoryManager::~MemoryManager() {
   //TODO(qingsen): need implementation 
-}
+//  cout << "Memory manager destructed";
+//}
 
 cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -66,7 +80,7 @@ cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
   while (curr) {
     if (curr->getData() == devptr) break;
     prev = curr;
-    curr = curr.getNext();
+    curr = curr->getNext();
   }
 
   if (!curr) return cudaErrorInvalidValue;
@@ -90,12 +104,15 @@ cudaError_t MemoryManager::Memcpy(int deviceId, void* dst, const void* src, size
   return cudaMemcpy(dst, src, count, kind);
 }
 
-cudaError_t MemoryManager::MemGetInfo(int deviceId, size_t* total, size_t* free) {
+cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free) {
   //TODO(qingsen): need implementation
+  std::lock_guard<std::mutex> lock(mutex_);
+  CUDA_CALL(cudaSetDevice(deviceIdx));
+  return cudaMemGetInfo(free, total);
 }
 
-bool MemoryManager::TryAllocate(int deviceId, isze_t size) {
-
+bool MemoryManager::TryAllocate(int deviceId, size_t size) {
+  return true;
 }
 
 Block* MemoryManager::findFirstFit(int idx, Block* prev, size_t size) {
@@ -117,8 +134,8 @@ Block* MemoryManager::allocateBlock(size_t size) {
     CHECK_CUDA_ERROR();
     return NULL;
   }
-  Block b = new Block(data, size);
-  return &b;
+  Block* b = new Block(data, size);
+  return b;
 }
 
 void MemoryManager::splitAndPlace(Block* b, Block* prev, int idx, size_t size) {
@@ -131,12 +148,11 @@ void MemoryManager::splitAndPlace(Block* b, Block* prev, int idx, size_t size) {
     }
   }
   else {
-    size_t split = b->getSize() - size;
-    Block splitBlock = new Block(b->getData() + size, b->getSize() - size);
+    Block* splitBlock = new Block(b->getData() + size, b->getSize() - size);
     int splitIdx = getFreeListIdx(splitBlock->getSize());
-    splitBlock.setNext(freeList_[splitIdx]);
-    freeList_[spliltIdx] = &splitBlock; 
+    splitBlock->setNext(freeList_[splitIdx]);
+    freeList_[splitIdx] = splitBlock; 
   }
 }
 
-} //namespace mxne
+} //namespace mxnet

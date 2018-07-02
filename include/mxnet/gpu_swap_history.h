@@ -19,12 +19,12 @@ using handle_id_t = unsigned long long;
 using timestamp_t = unsigned long long;
 using timestep_t = unsigned long long;
 
+const int NUMBER_OF_GPU = 8;
 
 class MemHistory {
 public:
 
   enum record_t {GET_ADDR, SET_ADDR, DEL_ADDR};
-  static const int NUMBER_OF_GPU = 8;
   struct MemRecord {
     handle_id_t handle_id;
     record_t operation_id;

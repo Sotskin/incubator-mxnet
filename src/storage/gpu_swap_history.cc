@@ -100,7 +100,7 @@ void MemHistory::PrintRecord(int device) {
 
 void MemHistory::StartIteration() {
   iteration_started_ = true;
-  for(int i = 0; i < MemHistory::NUMBER_OF_GPU; i++) {
+  for(int i = 0; i < NUMBER_OF_GPU; i++) {
     record_idx[i] = 0;
   }
   if(iteration_idx_ == 1)

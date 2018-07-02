@@ -18,7 +18,7 @@ Prefetch::Prefetch() {
   algorithm_ = dmlc::GetEnv("PREFETCH_ALGORITHM", 0);
   steps_ahead_ = dmlc::GetEnv("PREFETCH_STEP_AHEAD", 100);
   history_ = MemHistory::_GetSharedRef();
-  for(int i = 0; i < MemHistory::NUMBER_OF_GPU; i++) {
+  for(int i = 0; i < NUMBER_OF_GPU; i++) {
     lookahead_pos_[i] = -1;
   }
 }
@@ -39,7 +39,7 @@ std::shared_ptr<Prefetch> Prefetch::_GetSharedRef() {
 void Prefetch::StartPrefetching() {
   start_prefetching_ = false;
   stop_prefetching_ = false;
-  for(int device = 0; device < MemHistory::NUMBER_OF_GPU; device++) {
+  for(int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device] = std::thread(&Prefetch::Prefetching, this, device);
   }
 }
@@ -47,7 +47,7 @@ void Prefetch::StartPrefetching() {
 
 void Prefetch::StopPrefetching() {
   stop_prefetching_ = true;
-  for(int device = 0; device < MemHistory::NUMBER_OF_GPU; device++) {
+  for(int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device].join();
   }
 }
@@ -75,7 +75,7 @@ void Prefetch::HistoryBasedPrefetch(int device) {
     MemHistory::MemRecord r =
         history_->ordered_history[device][++lookahead_pos_[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {
-      Swap::Get()->GetAddr(r.handle_id, r.size);
+      Swap::Get()->GetAddr(r.handle_id);
     } else {
       std::cout << "non-read operation found" << std::endl;
     }

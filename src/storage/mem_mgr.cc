@@ -94,6 +94,10 @@ cudaError_t MemoryManager::MemGetInfo(int deviceId, size_t* total, size_t* free)
   //TODO(qingsen): need implementation
 }
 
+bool MemoryManager::TryAllocate(int deviceId, isze_t size) {
+
+}
+
 Block* MemoryManager::findFirstFit(int idx, Block* prev, size_t size) {
   Block* b = freeList_[idx];
   prev = NULL;

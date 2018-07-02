@@ -42,7 +42,9 @@ public:
   std::vector<std::map<handle_id_t, std::vector<MemRecord> > > history
       = std::vector<std::map<handle_id_t, std::vector<MemRecord> > >
       (NUMBER_OF_GPU);
-  size_t record_idx;
+  std::vector<std::vector<MemRecord> > ordered_history =
+      std::vector<std::vector<MemRecord> >(NUMBER_OF_GPU);
+  std::vector<size_t> record_idx = std::vector<size_t>(NUMBER_OF_GPU);
 
   ~MemHistory();
   static MemHistory* Get();
@@ -58,6 +60,7 @@ public:
 
 private:
   MemHistory();
+  //std::vector<std::thread> prefetcher_ = std::vector<std::thread>(NUMBER_OF_GPU);
   bool iteration_started_;
   bool is_recording_;
   size_t iteration_idx_;

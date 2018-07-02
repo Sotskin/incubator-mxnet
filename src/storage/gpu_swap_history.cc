@@ -1,10 +1,13 @@
 #include <iostream>
 #include <fstream>
+#include <unistd.h>
 #include <algorithm>
 #include <unordered_set>
 #include <vector>
 #include <set>
+#include <dmlc/logging.h>
 #include <mxnet/gpu_swap_history.h>
+#include <mxnet/gpu_swap_prefetch.h>
 
 namespace mxnet {
 
@@ -35,11 +38,12 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
     std::lock_guard<std::mutex> lock(mutex_[device]);
     timestamp_t t = (duration_cast<microseconds>
         (high_resolution_clock::now() - begin_time_)).count();
-    size_t record_step = record_idx;
+    size_t record_step = record_idx[device];
     MemRecord record = {handle_id, operation_id, t, record_step, size};
     history[device][handle_id].push_back(record);
+    ordered_history[device].push_back(record);
   }
-  record_idx++;
+  record_idx[device]++;
 }
 
 // optimal algorithm: assume iterations remain the same; choose the handle
@@ -50,7 +54,7 @@ handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, in
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
     MemHistory::MemRecord r = 
-        MemHistory::find(history[device][id], record_idx);
+        MemHistory::find(history[device][id], record_idx[device]);
     if(r.record_step > latest_step) {
       latest_step = r.record_step;
       latest_id = r.handle_id;
@@ -93,16 +97,36 @@ void MemHistory::PrintRecord(int device) {
 
 void MemHistory::StartIteration() {
   iteration_started_ = true;
-  record_idx = 0;
-  if(iteration_idx_ == 0)
+  for(int i = 0; i < NUMBER_OF_GPU; i++) {
+    record_idx[i] = 0;
+  }
+  if(iteration_idx_ == 1)
     is_recording_ = true;
+  if(iteration_idx_ > 1) {
+    /*
+    for(int device = 0; device < NUMBER_OF_GPU; device++) {
+      prefetcher_[device] = std::thread(&Prefetch::StartPrefetching, this, device);
+    }
+    */
+    Prefetch::Get()->StartPrefetching();
+    while(!Prefetch::Get()->IsPrefetching())
+      usleep(5);
+  }
   begin_time_ = high_resolution_clock::now();
 }
 
 void MemHistory::StopIteration() {
   is_recording_ = false;
   iteration_started_ = false;
+  Prefetch::Get()->StopPrefetching();
   ++iteration_idx_;
+  /*
+  if(Prefetch::IsPrefetching()) {
+    for(int device = 0; device < NUMBER_OF_GPU; device++) {
+      prefetcher_[device].join();
+    }
+  }
+  */
 }
 
 MemHistory::MemRecord MemHistory::find(std::vector<MemHistory::MemRecord> 

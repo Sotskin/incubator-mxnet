@@ -111,8 +111,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
   auto&& reuse_it = memory_pool_.find(size);
   if (reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
     size_t free, total;
-    memory_manager_->MemGetInfo(device_id_, &free, &total);
-    if (free <= total * reserve_ / 100 || size > free - total * reserve_ / 100) {
+    if (!memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100)) {
       do_reuse_= false;
       ReleaseAll();
     }

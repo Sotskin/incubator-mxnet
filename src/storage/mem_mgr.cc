@@ -13,11 +13,10 @@ namespace mxnet {
         << "CUDA: " << cudaGetErrorString(e);                    \
   }
 
-#define CHECK_CUDA_ERROR()						   \
-  {									   \
-    cudaError_t e = cudaGetLastError();					   \
-    CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);         \
-  }
+static inline void CHECK_CUDA_ERROR() {									   \
+  cudaError_t e = cudaGetLastError();					   
+  CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);         
+}
 
 MemoryManager* MemoryManager::Get() {
   static MemoryManager* mm = _GetSharedRef().get();
@@ -37,8 +36,7 @@ MemoryManager::MemoryManager() {
     cudaError_t err = cudaMalloc((void**)&data, size);
     if (err != cudaSuccess) {    
       CHECK_CUDA_ERROR(); 
-    }
-    else {
+    } else {
       Block* b = new Block(data, size);
       freeList_[i] = b; 
     }   
@@ -56,13 +54,13 @@ cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
   CUDA_CALL(cudaSetDevice(deviceIdx));
   int idx = getFreeListIdx(size);
   Block* prev = NULL;
-  Block* b = findFirstFit(idx, prev, size);
-  if (b == NULL) b = allocateBlock(size);  
+  Block* b = FindFirstFit(idx, prev, size);
+  if (b == NULL) b = AllocateBlock(size);  
   if (b == NULL) {
     devptr = NULL;
     return cudaErrorMemoryAllocation; 
   }
-  splitAndPlace(b, prev, idx, size);
+  SplitAndPlace(b, prev, idx, size);
   b->setAllocated();
   b->setNext(allocatedList_);
   allocatedList_ = b;
@@ -88,8 +86,7 @@ cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
   curr->setFree();
   if (prev) {
     prev->setNext(curr->getNext());
-  }
-  else {
+  } else {
     allocatedList_ = curr->getNext();
   } 
 
@@ -115,7 +112,7 @@ bool MemoryManager::TryAllocate(int deviceId, size_t size) {
   return true;
 }
 
-Block* MemoryManager::findFirstFit(int idx, Block* prev, size_t size) {
+Block* MemoryManager::FindFirstFit(int idx, Block* prev, size_t size) {
   Block* b = freeList_[idx];
   prev = NULL;
   if (b == NULL) return NULL;
@@ -127,27 +124,24 @@ Block* MemoryManager::findFirstFit(int idx, Block* prev, size_t size) {
   return NULL;
 }
 
-Block* MemoryManager::allocateBlock(size_t size) {
+Block* MemoryManager::AllocateBlock(size_t size) {
   char* data;
   cudaError_t err = cudaMalloc((void**)&data, size);
   if (err != cudaSuccess) {
     CHECK_CUDA_ERROR();
     return NULL;
   }
-  Block* b = new Block(data, size);
-  return b;
+  return new Block(data, size);
 }
 
-void MemoryManager::splitAndPlace(Block* b, Block* prev, int idx, size_t size) {
-  if ((b->getSize() - size) < 128) {
+void MemoryManager::SplitAndPlace(Block* b, Block* prev, int idx, size_t size) {
+  if ((b->getSize() - size) < MINALLOCSIZE_) {
     if (prev) {
       prev->setNext(b->getNext());
-    }
-    else {
+    } else {
       freeList_[idx] = b->getNext();
     }
-  }
-  else {
+  } else {
     Block* splitBlock = new Block(b->getData() + size, b->getSize() - size);
     int splitIdx = getFreeListIdx(splitBlock->getSize());
     splitBlock->setNext(freeList_[splitIdx]);

@@ -1,3 +1,6 @@
+#ifndef MXNET_MEM_MGR_H_
+#define MXNET_MEM_MGR_H_
+
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <memory>
@@ -7,6 +10,7 @@
 
 namespace mxnet {
 
+const int MINALLOCSIZE_ = 128;
 const int FREELISTSIZE_ = 21;
 
 typedef enum {
@@ -66,7 +70,7 @@ class Block {
     void setNext(Block* b) { nextBlock_ = b; }
     void setAllocated() { isFree_ = false; }
     void setFree() { isFree_ = true; }
-};
+}; // Class Block
 
 class MemoryManager {
   Block* allocatedList_;
@@ -82,13 +86,14 @@ class MemoryManager {
                        const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);   
     bool TryAllocate(int deviceId, size_t size);
-    Block* findFirstFit(int idx, Block* prev, size_t size);
-    Block* allocateBlock(size_t size);
-    void splitAndPlace(Block* b, Block* prev, int idx, size_t size);
 
   private:
     MemoryManager();
-};
+    Block* FindFirstFit(int idx, Block* prev, size_t size);
+    Block* AllocateBlock(size_t size);
+    void SplitAndPlace(Block* b, Block* prev, int idx, size_t size);
+};  // Class MemoryManager
 
 } //namespace mxnet
 
+#endif // MXNET_MEM_MGR_H_

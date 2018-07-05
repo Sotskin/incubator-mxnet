@@ -118,7 +118,9 @@ void MemHistory::StartIteration() {
 void MemHistory::StopIteration() {
   is_recording_ = false;
   iteration_started_ = false;
-  Prefetch::Get()->StopPrefetching();
+  if(Prefetch::Get()->IsPrefetching()) {
+    Prefetch::Get()->StopPrefetching();
+  }
   ++iteration_idx_;
   /*
   if(Prefetch::IsPrefetching()) {

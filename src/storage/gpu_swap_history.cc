@@ -120,6 +120,7 @@ void MemHistory::PrintRecord(int device) {
 }
 
 void MemHistory::StartIteration() {
+  std::cout<<"Start Iteration: " << iteration_idx_<<std::endl;
   iteration_started_ = true;
   for(int i = 0; i < NUMBER_OF_GPU; i++) {
     record_idx[i] = 0;
@@ -141,6 +142,7 @@ void MemHistory::StartIteration() {
 }
 
 void MemHistory::StopIteration() {
+  std::cout<<"Iteration Stopped"<<std::endl;
   if (iteration_idx_ == 0) {
     for (auto& _ordered_history : ordered_history) {
       _ordered_history.clear();
@@ -150,6 +152,7 @@ void MemHistory::StopIteration() {
     }
     fifo_index_ = 0;
   }
+  std::cout<<"1"<<std::endl;
   is_recording_ = false;
   iteration_started_ = false;
   Prefetch::Get()->StopPrefetching();

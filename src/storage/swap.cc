@@ -128,10 +128,12 @@ void* Swap::GetAddr(handle_id_t handle_id) {
   std::cout<<"GetAddr size " << info->size << std::endl;
 #if MXNET_USE_CUDA
   if (!info->swapped_in) {
+    std::cout<<"GetAddr Swap in"<<std::endl;
     SwapIn(info);
   }
 #endif // MXNET_USE_CUDA
   pthread_rwlock_unlock(&swap_lock_);
+  std::cout<<"GetAddr Over"<<std::endl;
   return info->dptr;
 }
 

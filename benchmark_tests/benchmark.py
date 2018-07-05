@@ -67,7 +67,7 @@ def test():
     for i in range(num_loops):
         print('=> loop %d' % i);
 	#uncomment this line to enable start_iteration()
-        #mx.base.start_iteration()
+        mx.base.start_iteration()
         st_l = time.time()
         outputs = executor.forward()
         if num_classes is None:
@@ -77,7 +77,7 @@ def test():
         for name, grad in args_grad.items():
             grad.wait_to_read()
         #uncomment this line to enable stop_iteration()
-	#mx.base.stop_iteration()
+	mx.base.stop_iteration()
         if len(outputs) > 0:
             outputs[-1].wait_to_read()
         ed_l = time.time()

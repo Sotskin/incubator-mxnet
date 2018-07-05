@@ -155,7 +155,9 @@ void MemHistory::StopIteration() {
   std::cout<<"1"<<std::endl;
   is_recording_ = false;
   iteration_started_ = false;
-  Prefetch::Get()->StopPrefetching();
+  if(Prefetch::Get()->IsPrefetching()) {
+    Prefetch::Get()->StopPrefetching();
+  }
   ++iteration_idx_;
   /*
   if(Prefetch::IsPrefetching()) {

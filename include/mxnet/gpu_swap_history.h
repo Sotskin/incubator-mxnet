@@ -64,6 +64,7 @@ private:
   bool iteration_started_;
   bool is_recording_;
   size_t iteration_idx_;
+  size_t fifo_index_;
   high_resolution_clock::time_point begin_time_;
   std::vector<std::mutex> mutex_ = std::vector<std::mutex>(NUMBER_OF_GPU);
 };  // class MemHistory

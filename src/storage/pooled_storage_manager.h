@@ -100,7 +100,6 @@ class GPUPooledStorageManager final : public StorageManager {
   std::unordered_map<size_t, std::vector<void*>> memory_pool_;
   // whether to reuse freed memory
   bool do_reuse_;
-  // device id
   int device_id_;
   DISALLOW_COPY_AND_ASSIGN(GPUPooledStorageManager);
 };  // class GPUPooledStorageManager
@@ -111,8 +110,9 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
   auto&& reuse_it = memory_pool_.find(size);
   if (reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
     size_t free, total;
-    if (!memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100)) {
-      do_reuse_= false;
+    if (!memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) 
+        || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100)) {
+      do_reuse_ = false;
       ReleaseAll();
     }
     swap_->SwapOut(size, device_id_);

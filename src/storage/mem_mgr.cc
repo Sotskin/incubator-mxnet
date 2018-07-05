@@ -52,7 +52,7 @@ bool MemoryManager::TryAllocate(int device_id, size_t size) {
   cudaSetDevice(device_id);
   size_t free, total;
   cudaMemGetInfo(&free, &total);
-  return free > size + hack_size;
+  return free  > size;
 }
 
 } // namespace mxnet

@@ -32,11 +32,15 @@ MemHistory* MemHistory::Get() {
 
 void MemHistory::PutRecord(handle_id_t handle_id, int device,
                           record_t operation_id, size_t size) {
-  if(!IterationStarted())
+  if(!IterationStarted()) { 
+    std::cout << "iteration not started" << std::endl;
     return;
+  }
   if(!IsRecording()) {
+    std::cout << "Not recording" << std::endl;
   } else {
     std::lock_guard<std::mutex> lock(mutex_[device]);
+    std::cout << "Record "<< handle_id << " " << size << std::endl;
     timestamp_t t = (duration_cast<microseconds>
         (high_resolution_clock::now() - begin_time_)).count();
     size_t record_step = record_idx[device];
@@ -52,16 +56,23 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ == 0) {
+    std::cout << "DecideVictim start search, handles size = " << 
+     handles.size() << std::endl;
     while (handles.find(ordered_history[device][fifo_index_].handle_id)
         == handles.end()) {
+      std::cout << "DecideVictim fifo index = " << fifo_index_ << std::endl;
       fifo_index_ ++;
-      if (fifo_index_ == ordered_history[device].size()) {
+      if (fifo_index_ >= ordered_history[device].size()) {
         // (sotskin) none of the handles is in the history
         // should never happen
+        std::cout << "DecideVictim failed" << std::endl;
         return -1;
       }
     }
-    return ordered_history[device][fifo_index_++].handle_id;
+    std::cout << "DecideVictim search over" << std::endl;
+    std::cout << "DecideVictim return " << 
+      ordered_history[device][fifo_index_].handle_id << std::endl;
+    return ordered_history[device][fifo_index_].handle_id;
   }
   size_t latest_step = 0;
   handle_id_t latest_id = 0;

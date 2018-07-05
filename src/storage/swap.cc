@@ -37,20 +37,28 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
   }
   std::cout << "SwapOut working " << device_id << " " << required_memory << std::endl;
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
+    std::cout<<"0 decidevictim handle set size = " << 
+      swappable_handles_[device_id].size()<<std::endl;
     handle_id_t victim = 
       memory_history_->DecideVictim(swappable_handles_[device_id], device_id);
+    std::cout<<"1"<<std::endl;
     SwapInfo *target = swap_info_[victim];
+    std::cout<<"2"<<std::endl;
     if(target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
     }
     CHECK(target->swapped_in);
     CHECK(target->dptr != nullptr);
     target->swapped_in = false;
+    std::cout<<"3"<<std::endl;
     swappable_handles_[device_id].erase(victim);
     memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr,
         target->size, cudaMemcpyDeviceToHost);
+    std::cout<<"4"<<std::endl;
     memory_manager_->Free(target->dptr, device_id);
+    std::cout<<"5"<<std::endl;
   }
+  std::cout<<"Swapout End"<<std::endl;
 }
 
 void Swap::SwapIn(SwapInfo *info) {
@@ -69,6 +77,7 @@ void Swap::SwapIn(SwapInfo *info) {
 }
 
 void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id) {
+  std::cout<<"SetAddr " << handle_id << " " << size << std::endl;
   if (device_id != -1){
     memory_history_->PutRecord(handle_id, device_id, MemHistory::SET_ADDR, size);
   }
@@ -111,10 +120,12 @@ void Swap::DelAddr(handle_id_t handle_id) {
 // TODO(sotskin) compatibility for MKLMEM
 void* Swap::GetAddr(handle_id_t handle_id) {
   pthread_rwlock_rdlock(&swap_lock_);
+  std::cout<<"GetAddr " << handle_id << std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR, info->size);
   }
+  std::cout<<"GetAddr size " << info->size << std::endl;
 #if MXNET_USE_CUDA
   if (!info->swapped_in) {
     SwapIn(info);

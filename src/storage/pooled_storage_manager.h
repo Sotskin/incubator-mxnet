@@ -110,11 +110,14 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
   auto&& reuse_it = memory_pool_.find(size);
   if (reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
     size_t free, total;
-    if (!memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) 
-        || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100)) {
+    if (do_reuse_ && 
+        ( !memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) 
+        || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100))) {
+      std::cout<<"!!!!!!!!!!!!!!!Disable reuse"<<std::endl;
       do_reuse_ = false;
       ReleaseAll();
     }
+    std::cout <<"swap out " << size << " " << device_id_ << std::endl;
     swap_->SwapOut(size, device_id_);
     void* ret = nullptr;
     cudaError_t e = memory_manager_->Malloc(ret, size, device_id_);

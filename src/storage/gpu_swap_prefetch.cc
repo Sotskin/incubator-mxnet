@@ -42,6 +42,7 @@ void Prefetch::StartPrefetching() {
   for(int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device] = std::thread(&Prefetch::Prefetching, this, device);
   }
+  std::cout<<"StartPrefetching ends"<<std::endl;
 }
 
 
@@ -54,10 +55,12 @@ void Prefetch::StopPrefetching() {
 
 
 void Prefetch::Prefetching(int device) {
+  std::cout<<"Prefetching device="<<device<<std::endl;
   while(!stop_prefetching_) {
     if(algorithm_ == 0) {
       HistoryBasedPrefetch(device);
     }
+    std::cout<<"Set Prefetching to True device="<<device<<std::endl;
     start_prefetching_ = true;
     usleep(1);
   }

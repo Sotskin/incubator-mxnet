@@ -139,6 +139,7 @@ void MemHistory::StartIteration() {
       usleep(5);
   }
   begin_time_ = high_resolution_clock::now();
+  std::cout<<"StartIteration end"<<std::endl;
 }
 
 void MemHistory::StopIteration() {

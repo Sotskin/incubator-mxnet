@@ -56,7 +56,7 @@ MemoryManager::MemoryManager() {
         if (avail <= 0) break;
     }
  
-    if (avail > 0) buddy_[deviceIdx] = new BuddySystem(deviceIdx, avail, new Block(wholeMemory, avail));
+    if (avail > 0) buddy_[deviceIdx] = new BuddySystem(new Block(wholeMemory, avail), avail, deviceIdx);
   } 
 }
 

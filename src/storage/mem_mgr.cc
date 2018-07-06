@@ -18,6 +18,14 @@ static inline void CHECK_CUDA_ERROR() {									   \
   CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);         
 }
 
+void* BuddySystem::Alloc(size_t size) {
+
+}
+
+cudaError_t BuddySystem::Free(void* ptr) {
+
+}
+
 MemoryManager* MemoryManager::Get() {
   static MemoryManager* mm = _GetSharedRef().get();
   return mm;
@@ -28,20 +36,28 @@ std::shared_ptr<MemoryManager> MemoryManager::_GetSharedRef() {
   return inst;
 } 
 
-//allocate one single biggest available block in the last freelist entry
 MemoryManager::MemoryManager() {
-  for (int i = 0; i < FREELISTSIZE_; i++) {
-    char* data;
-    size_t size = (size_t)exp2((double)(i + 7));
-    cudaError_t err = cudaMalloc((void**)&data, size);
-    if (err != cudaSuccess) {    
-      CHECK_CUDA_ERROR(); 
-    } else {
-      Block* b = new Block(data, size);
-      freeList_[i] = b; 
-    }   
-  }
-  usedList_ = NULL;
+  int deviceNum;
+  CUDA_CALL(cudaGetDeviceCount(&deviceNum));
+  buddy_ = new BuddySystem*[deviceNum];
+  
+  for (int deviceIdx = 0; deviceIdx < deviceNum; deviceIdx++) {
+    buddy_[deviceIdx] = NULL;
+    CUDA_CALL(cudaSetDevice(deviceIdx));
+    
+    size_t avail, total;
+    size_t mb = 1 << 20;
+    CUDA_CALL(cudaMemGetInfo(&avail, &total));
+  
+    avail = static_cast<size_t>(avail * GPUUTILRATIO);  
+    char* wholeMemory = NULL;
+    while (cudaMalloc((void**)&wholeMemory, avail) == cudaErrorMemoryAllocation) {
+        avail -= mb;
+        if (avail <= 0) break;
+    }
+ 
+    if (avail > 0) buddy_[deviceIdx] = new BuddySystem(deviceIdx, avail, new Block(wholeMemory, avail));
+  } 
 }
 
 //MemoryManager::~MemoryManager() {
@@ -52,47 +68,15 @@ MemoryManager::MemoryManager() {
 cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
-  int idx = getFreeListIdx(size);
-  Block* prev = NULL;
-  Block* b = FindFirstFit(idx, prev, size);
-  if (b == NULL) b = AllocateBlock(size);  
-  if (b == NULL) {
-    devptr = NULL;
-    return cudaErrorMemoryAllocation; 
-  }
-  SplitAndPlace(b, prev, idx, size);
-  b->setAllocated();
-  b->setNext(allocatedList_);
-  allocatedList_ = b;
-  devptr = b->getData();
+  devptr = buddy_[deviceIdx]->Alloc(size);
+  if (!devptr) return cudaErrorMemoryAllocation;
   return cudaSuccess;
 }
 
-//TODO(qingsen): Try to coalesce when freeing allocated blocks?
 cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
-  Block* curr = allocatedList_;
-  Block* prev = NULL;
- 
-  while (curr) {
-    if (curr->getData() == devptr) break;
-    prev = curr;
-    curr = curr->getNext();
-  }
-
-  if (!curr) return cudaErrorInvalidValue;
-  
-  curr->setFree();
-  if (prev) {
-    prev->setNext(curr->getNext());
-  } else {
-    allocatedList_ = curr->getNext();
-  } 
-
-  int idx = getFreeListIdx(curr->getSize());
-  curr->setNext(freeList_[idx]);
-  freeList_[idx] = curr;
+  buddy_[deviceIdx]->Free(devptr);
   return cudaSuccess;
 }
         
@@ -108,45 +92,12 @@ cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free
   return cudaMemGetInfo(free, total);
 }
 
-bool MemoryManager::TryAllocate(int deviceId, size_t size) {
-  return true;
+bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
+  //CUDA_CALL(cudaSetDevice(deviceIdx));
+  //if (size > buddy_->maxBlock_) {
+  //  return false;
+  //} else {
+  //  return true;
+  //}
 }
-
-Block* MemoryManager::FindFirstFit(int idx, Block* prev, size_t size) {
-  Block* b = freeList_[idx];
-  prev = NULL;
-  if (b == NULL) return NULL;
-  while (b != NULL) {
-    if (b->getSize() >= size) return b;
-    prev = b;
-    b = b->getNext();
-  }
-  return NULL;
-}
-
-Block* MemoryManager::AllocateBlock(size_t size) {
-  char* data;
-  cudaError_t err = cudaMalloc((void**)&data, size);
-  if (err != cudaSuccess) {
-    CHECK_CUDA_ERROR();
-    return NULL;
-  }
-  return new Block(data, size);
-}
-
-void MemoryManager::SplitAndPlace(Block* b, Block* prev, int idx, size_t size) {
-  if ((b->getSize() - size) < MINALLOCSIZE_) {
-    if (prev) {
-      prev->setNext(b->getNext());
-    } else {
-      freeList_[idx] = b->getNext();
-    }
-  } else {
-    Block* splitBlock = new Block(b->getData() + size, b->getSize() - size);
-    int splitIdx = getFreeListIdx(splitBlock->getSize());
-    splitBlock->setNext(freeList_[splitIdx]);
-    freeList_[splitIdx] = splitBlock; 
-  }
-}
-
 } //namespace mxnet

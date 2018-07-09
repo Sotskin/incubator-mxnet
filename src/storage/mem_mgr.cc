@@ -21,7 +21,7 @@ static inline void CHECK_CUDA_ERROR() {
 BuddySystem::BuddySystem(Block* start, size_t total, int gpuIdx) 
   : start_(start),
     total_(total),
-    allocated(0),
+    allocated_(0),
     free_(total),
     gpuIdx_(gpuIdx) {
   freeListSize_ = getListSize(total);
@@ -40,13 +40,13 @@ void* BuddySystem::Alloc(size_t size) {
 
   while(!found) {
     if (freeList_[listIdx] != NULL) {
-      blockToBeAllocated = freeList[listIdx];
-      freeList[listIdx] = blockToBeAllocated->getNext();
+      blockToBeAllocated = freeList_[listIdx];
+      freeList_[listIdx] = blockToBeAllocated->getNext();
       blockToBeAllocated->setNext(NULL);
       found = true; 
     } else if (currIdx < freeListSize_) {
-      currIdx++:
-      if (freeList[currIdx] != NULL) {
+      currIdx++;
+      if (freeList_[currIdx] != NULL) {
         Block* blockToBeRemoved = freeList[currIdx];
         int blockSize = getListBlockSize(currIdx - 1);
         InsertBlock(new Block(blockToBeRemoved->getData(), (size_t)blockSize));
@@ -61,8 +61,8 @@ void* BuddySystem::Alloc(size_t size) {
   }
     
   if (found) {
-    allocated += blockToBeAllocated->getSize();
-    free -= blockToBeAllocated->getSize();
+    allocated_ += blockToBeAllocated->getSize();
+    free_ -= blockToBeAllocated->getSize();
     return (void*)(blockToBeAllocated->getData());
   } else {
     return NULL;
@@ -70,7 +70,7 @@ void* BuddySystem::Alloc(size_t size) {
 }
 
 cudaError_t BuddySystem::Free(void* ptr) {
-
+  return cudaSuccess;
 }
 
 void BuddySystem::InsertBlock(Block* block) {
@@ -81,13 +81,21 @@ void BuddySystem::InsertBlock(Block* block) {
     return;
   }
 
-  Block* curr, prev;
+  Block* curr;
+  Block* prev;
+  prev = NULL;
   curr = freeList_[idx];
  
   while (curr != NULL) {
+    if (curr->getData() > block->getData()) break;
     prev = curr;
-  
+    curr = curr->getNext();
   }  
+
+  if (prev != NULL) {
+    prev->setNext(block);
+    block->setNext(curr);
+  } 
 }
 
 MemoryManager* MemoryManager::Get() {

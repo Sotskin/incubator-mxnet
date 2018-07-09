@@ -44,7 +44,7 @@ inline int nextPowerOfTwo(int size) {
 
 inline int getListIdx(size_t size) {
   if (size <= 128) return 0;
-  return ceil(log2(size) - log2(MINALLOCSIZE_));
+  return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MINALLOCSIZE_)));
 }
 
 inline int getListSize(size_t size) {
@@ -52,7 +52,7 @@ inline int getListSize(size_t size) {
 }
 
 inline size_t getListBlockSize(int idx) {
-  return pow(2, idx + log2(MINALLOCSIZE_));   
+  return pow(2, idx + log2(static_cast<double>(MINALLOCSIZE_)));   
 }
 
 class Block {

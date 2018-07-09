@@ -47,11 +47,11 @@ void* BuddySystem::Alloc(size_t size) {
     } else if (currIdx < freeListSize_) {
       currIdx++;
       if (freeList_[currIdx] != NULL) {
-        Block* blockToBeRemoved = freeList[currIdx];
+        Block* blockToBeRemoved = freeList_[currIdx];
         int blockSize = getListBlockSize(currIdx - 1);
         InsertBlock(new Block(blockToBeRemoved->getData(), (size_t)blockSize));
         InsertBlock(new Block(blockToBeRemoved->getData() + blockSize, blockToBeRemoved->getSize() - blockSize));
-        freeList[currIdx] = blockToBeRemoved->getNext();
+        freeList_[currIdx] = blockToBeRemoved->getNext();
         blockToBeRemoved->setNext(NULL);
         currIdx = listIdx;
       }

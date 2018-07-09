@@ -42,26 +42,39 @@ inline int nextPowerOfTwo(int size) {
   return result;
 }
 
+inline int getListIdx(size_t size) {
+  if (size <= 128) return 0;
+  return ceil(log2(size) - log2(MINALLOCSIZE_));
+}
+
+inline int getListSize(size_t size) {
+  return getListIdx(size) + 1; 
+}
+
+inline size_t getListBlockSize(int idx) {
+  return pow(2, idx + log2(MINALLOCSIZE_));   
+}
+
 class Block {
   private: 
     char* data_;
     std::size_t size_;
-    //Block* nextBlock_;
+    Block* nextBlock_;
     blockStatus_t status_;
 
   public:
     Block(char* data, size_t size)
       : data_(data),
         size_(size),
-        //nextBlock_(NULL),
+        nextBlock_(NULL),
         status_(blockStatus_Uninitialized) {
     }
 
     char* getData() { return data_; }
     size_t getSize() { return size_; }
-    //Block* getNext() {return nextBlock_; }
+    Block* getNext() { return nextBlock_; }
 
-    //void setNext(Block* b) { nextBlock_ = b; }
+    void setNext(Block* b) { nextBlock_ = b; }
     void setAllocated() { status_ = blockStatus_Allocated; }
     void setFree() { status_ = blockStatus_Free; }
 }; // Class Block
@@ -69,23 +82,28 @@ class Block {
 class BuddySystem {
   private:
     Block* start_;
+    Block** freeList_;
     size_t total_;
     size_t allocated_;
     size_t free_;
-    size_t maxBlock_;
+    int freeListSize_;
     int gpuIdx_;
   
   public:
-    BuddySystem(Block* start, size_t total, int gpuIdx)
-      : start_(start), 
-        total_(total),
-        gpuIdx_(gpuIdx) {
-    }
-    ~BuddySystem();  
-
+    BuddySystem(Block* start, size_t total, int gpuIdx);
+    ~BuddySystem();
+    
+  public:
+    size_t getTotal() { return total_; }
+    size_t getFree() { return free_; }
+    size_t getAllocated() { return allocated_; }  
+    int getFreeListSize() { return freeListSize_; }
+    Block** getFreeList() { return freeList_; }  
+ 
   public:
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr); 
+    void InsertBlock(Block* block);
     
 }; //Class BuddySystem
 

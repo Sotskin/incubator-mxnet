@@ -13,17 +13,81 @@ namespace mxnet {
         << "CUDA: " << cudaGetErrorString(e);                    \
   }
 
-static inline void CHECK_CUDA_ERROR() {									   \
+static inline void CHECK_CUDA_ERROR() {									   
   cudaError_t e = cudaGetLastError();					   
   CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);         
 }
 
-void* BuddySystem::Alloc(size_t size) {
+BuddySystem::BuddySystem(Block* start, size_t total, int gpuIdx) 
+  : start_(start),
+    total_(total),
+    allocated(0),
+    free_(total),
+    gpuIdx_(gpuIdx) {
+  freeListSize_ = getListSize(total);
+  freeList_ = new Block*[freeListSize_];
+  for (int i = 0; i < freeListSize_; i++) {
+    freeList_[i] = NULL;
+  }
+  if (freeListSize_ > 0) freeList_[freeListSize_ - 1] = start;
+}
 
+void* BuddySystem::Alloc(size_t size) {
+  int listIdx = getListIdx(size);
+  int currIdx = listIdx;
+  bool found = false;
+  Block* blockToBeAllocated;
+
+  while(!found) {
+    if (freeList_[listIdx] != NULL) {
+      blockToBeAllocated = freeList[listIdx];
+      freeList[listIdx] = blockToBeAllocated->getNext();
+      blockToBeAllocated->setNext(NULL);
+      found = true; 
+    } else if (currIdx < freeListSize_) {
+      currIdx++:
+      if (freeList[currIdx] != NULL) {
+        Block* blockToBeRemoved = freeList[currIdx];
+        int blockSize = getListBlockSize(currIdx - 1);
+        InsertBlock(new Block(blockToBeRemoved->getData(), (size_t)blockSize));
+        InsertBlock(new Block(blockToBeRemoved->getData() + blockSize, blockToBeRemoved->getSize() - blockSize));
+        freeList[currIdx] = blockToBeRemoved->getNext();
+        blockToBeRemoved->setNext(NULL);
+        currIdx = listIdx;
+      }
+    } else {
+      break;
+    }
+  }
+    
+  if (found) {
+    allocated += blockToBeAllocated->getSize();
+    free -= blockToBeAllocated->getSize();
+    return (void*)(blockToBeAllocated->getData());
+  } else {
+    return NULL;
+  }    
 }
 
 cudaError_t BuddySystem::Free(void* ptr) {
 
+}
+
+void BuddySystem::InsertBlock(Block* block) {
+  int idx = getListIdx(block->getSize());
+  
+  if (freeList_[idx] == NULL) {
+    freeList_[idx] = block;
+    return;
+  }
+
+  Block* curr, prev;
+  curr = freeList_[idx];
+ 
+  while (curr != NULL) {
+    prev = curr;
+  
+  }  
 }
 
 MemoryManager* MemoryManager::Get() {
@@ -55,7 +119,7 @@ MemoryManager::MemoryManager() {
         avail -= mb;
         if (avail <= 0) break;
     }
- 
+
     if (avail > 0) buddy_[deviceIdx] = new BuddySystem(new Block(wholeMemory, avail), avail, deviceIdx);
   } 
 }
@@ -93,11 +157,18 @@ cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free
 }
 
 bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
-  //CUDA_CALL(cudaSetDevice(deviceIdx));
-  //if (size > buddy_->maxBlock_) {
-  //  return false;
-  //} else {
-  //  return true;
-  //}
+  CUDA_CALL(cudaSetDevice(deviceIdx));
+  BuddySystem* buddy = buddy_[deviceIdx];
+  Block** freeList = buddy->getFreeList();
+  int freeListSize = buddy->getFreeListSize();
+  int idx = getListIdx(size);
+  if (idx == 0) idx = 1;
+
+  for (int i = idx; i < freeListSize; i++) {
+    if (freeList[i] != NULL) return true;
+  }
+
+  return false;
 }
+
 } //namespace mxnet

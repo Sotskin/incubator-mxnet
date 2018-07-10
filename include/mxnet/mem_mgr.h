@@ -3,6 +3,7 @@
 
 #include <cuda_runtime_api.h>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <math.h>
@@ -74,6 +75,7 @@ class Block {
     size_t getSize() { return size_; }
     Block* getNext() { return nextBlock_; }
 
+    void setSize(size_t size) { size_ = size; }
     void setNext(Block* b) { nextBlock_ = b; }
     void setAllocated() { status_ = blockStatus_Allocated; }
     void setFree() { status_ = blockStatus_Free; }
@@ -88,6 +90,10 @@ class BuddySystem {
     size_t free_;
     int freeListSize_;
     int gpuIdx_;
+   
+  private:
+    typedef std::map<char*, Block*> MemoryPool;
+    MemoryPool memPool_;
   
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
@@ -98,24 +104,32 @@ class BuddySystem {
     size_t getFree() { return free_; }
     size_t getAllocated() { return allocated_; }  
     int getFreeListSize() { return freeListSize_; }
-    Block** getFreeList() { return freeList_; }  
+    Block** getFreeList() { return freeList_; }
+    MemoryPool getMemPool() { return memPool_; }  
  
   public:
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr); 
-    void InsertBlock(Block* block);
     
+  private:
+    void InsertBlock(Block* block);
+    void Merge(Block* block);   
+ 
 }; //Class BuddySystem
 
 class MemoryManager {
-  BuddySystem** buddy_;
-  std::mutex mutex_;
+  private:  
+    BuddySystem** buddy_;
+    std::mutex mutex_;
+    int deviceCount_;
+
   public:
+    ~MemoryManager();
     static MemoryManager* Get();
     static std::shared_ptr<MemoryManager> _GetSharedRef();
     cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
     cudaError_t Free(void* devptr, int deviceIdx);
-    cudaError_t Memcpy(int deviceId, void* dst, 
+    cudaError_t Memcpy(int deviceIdx, void* dst, 
                        const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);   
     bool TryAllocate(int deviceId, size_t size);
@@ -124,5 +138,4 @@ class MemoryManager {
     MemoryManager();
 };  // Class MemoryManager
 } //namespace mxnet
-
 #endif // MXNET_MEM_MGR_H_

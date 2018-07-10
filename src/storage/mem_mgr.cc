@@ -61,8 +61,10 @@ void* BuddySystem::Alloc(size_t size) {
   }
     
   if (found) {
-    allocated_ += blockToBeAllocated->getSize();
-    free_ -= blockToBeAllocated->getSize();
+    size_t size = blockToBeAllocated->getSize();
+    allocated_ += size;
+    free_ -= size;
+    memPool_[blockToBeAllocated->getData()] = blockToBeAllocated;
     return (void*)(blockToBeAllocated->getData());
   } else {
     return NULL;
@@ -70,12 +72,17 @@ void* BuddySystem::Alloc(size_t size) {
 }
 
 cudaError_t BuddySystem::Free(void* ptr) {
+  std::map<char*, Block*>::iterator itr = memPool_.find((char*)ptr);
+  if (itr == memPool_.end()) return cudaErrorInvalidValue;
+  Block* blockToBeInserted = itr->second;
+  memPool_.erase(itr);
+  InsertBlock(blockToBeInserted);
+  Merge(blockToBeInserted);
   return cudaSuccess;
 }
 
 void BuddySystem::InsertBlock(Block* block) {
-  int idx = getListIdx(block->getSize());
-  
+  int idx = getListIdx(block->getSize()); 
   if (freeList_[idx] == NULL) {
     freeList_[idx] = block;
     return;
@@ -98,6 +105,38 @@ void BuddySystem::InsertBlock(Block* block) {
   } 
 }
 
+void BuddySystem::Merge(Block* block) {
+  int idx = getListIdx(block->getSize());
+  size_t listBlockSize = getListBlockSize((size_t)idx);
+  Block* curr = freeList_[idx];
+  Block* prev = NULL;
+  
+  while (curr != block && curr != NULL) {
+    prev = curr;
+    curr = curr->getNext();
+  } 
+
+  if (curr == NULL) return;
+  if (curr->getNext() != NULL) {
+    Block* next = curr->getNext();
+    if ((curr->getData() + listBlockSize) == next->getData()) {
+      curr->setSize(curr->getSize() + next->getSize());
+      curr->setNext(next->getNext());
+      next->setNext(NULL);
+    }
+  }
+  if (prev != NULL) {
+    if ((prev->getData() + listBlockSize) == curr->getData()) {
+      prev->setSize(prev->getSize() + curr->getSize());
+      prev->setNext(curr->getNext());
+      curr->setNext(NULL);
+      InsertBlock(prev);
+      return;
+    }
+  }
+  InsertBlock(curr);
+}
+
 MemoryManager* MemoryManager::Get() {
   static MemoryManager* mm = _GetSharedRef().get();
   return mm;
@@ -111,6 +150,7 @@ std::shared_ptr<MemoryManager> MemoryManager::_GetSharedRef() {
 MemoryManager::MemoryManager() {
   int deviceNum;
   CUDA_CALL(cudaGetDeviceCount(&deviceNum));
+  deviceCount_ = deviceNum;
   buddy_ = new BuddySystem*[deviceNum];
   
   for (int deviceIdx = 0; deviceIdx < deviceNum; deviceIdx++) {
@@ -132,10 +172,17 @@ MemoryManager::MemoryManager() {
   } 
 }
 
-//MemoryManager::~MemoryManager() {
-  //TODO(qingsen): need implementation 
-//  cout << "Memory manager destructed";
-//}
+MemoryManager::~MemoryManager() {
+  typedef std::map<char*, Block*> MemoryPool;
+  for (int deviceIdx = 0; deviceIdx < deviceCount_; deviceIdx++) {
+    CUDA_CALL(cudaSetDevice(deviceIdx));
+    BuddySystem* buddy = buddy_[deviceIdx];
+    MemoryPool mp = buddy->getMemPool();
+    while (!mp.empty()) {
+      buddy->Free((void*)(mp.begin()->first));
+    }    
+  }
+}
 
 cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -152,16 +199,21 @@ cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
   return cudaSuccess;
 }
         
-cudaError_t MemoryManager::Memcpy(int deviceId, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
-  //TODO(qingsen): need implementation
-  return cudaMemcpy(dst, src, count, kind);
-}
-
-cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free) {
+cudaError_t MemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
   //TODO(qingsen): need implementation
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
-  return cudaMemGetInfo(free, total);
+  return cudaMemcpy(dst, src, count, kind);
+}
+
+//returns total memory and total free memory(not necessarily consequtive) in mmu
+cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  CUDA_CALL(cudaSetDevice(deviceIdx));
+  if (buddy_[deviceIdx] == NULL) return cudaErrorInvalidValue;
+  *total = buddy_[deviceIdx]->getTotal();
+  *free = buddy_[deviceIdx]->getFree();
+  return cudaSuccess;
 }
 
 bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
@@ -178,5 +230,4 @@ bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
 
   return false;
 }
-
 } //namespace mxnet

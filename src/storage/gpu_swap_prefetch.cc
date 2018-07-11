@@ -68,13 +68,12 @@ void Prefetch::Prefetching(int device) {
 
 
 void Prefetch::HistoryBasedPrefetch(int device) {
-  pthread_rwlock_rdlock(&swap_lock_);
+  //pthread_rwlock_rdlock(&swap_lock_);
+  std::cout<<"HistoryBasedPrefetch device="<<device<<std::endl;
   //bool has_begun = false;
-  bool not_end =
-      lookahead_pos_[device]+1 < history_->ordered_history[device].size();
-  bool too_ahead =
-      lookahead_pos_[device] - history_->record_idx[device] > steps_ahead_;
-  while(not_end && !too_ahead) {
+  while(lookahead_pos_[device]+1 < history_->ordered_history[device].size() 
+      && lookahead_pos_[device] - history_->record_idx[device] <= steps_ahead_) {
+    std::cout<<"HistoryBasedPrefetch: Waiting"<<std::endl;
     MemHistory::MemRecord r =
         history_->ordered_history[device][++lookahead_pos_[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {
@@ -83,7 +82,8 @@ void Prefetch::HistoryBasedPrefetch(int device) {
       std::cout << "non-read operation found" << std::endl;
     }
   }
-  pthread_rwlock_unlock(&swap_lock_);
+  //pthread_rwlock_unlock(&swap_lock_);
+  std::cout<<"HistoryBasedPrefetch End device="<<device<<std::endl;
 }
 
 

@@ -1,5 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
+/* * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -75,12 +74,14 @@ class GPUPooledStorageManager final : public StorageManager {
 
  private:
   void DirectFreeNoLock(Storage::Handle handle) {
+    std::cout<<"GPUPooled:DirectfreeNolock id="<<handle.id_<<std::endl;
     cudaError_t err = memory_manager_->Free(handle.GetDptr(), device_id_);
     size_t size = handle.size + NDEV;
     // ignore unloading error, as memory has already been recycled
     if (err != cudaSuccess && err != cudaErrorCudartUnloading) {
       LOG(FATAL) << "CUDA: " << cudaGetErrorString(err);
     }
+    handle.Free();
     used_memory_ -= size;
   }
  
@@ -107,9 +108,11 @@ class GPUPooledStorageManager final : public StorageManager {
 void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
   std::lock_guard<std::mutex> lock(Storage::Get()->GetMutex(Context::kGPU));
   size_t size = handle->size + NDEV;
+  std::cout<<"Alloc "<<size << " id=" << handle->id_<<std::endl;
   auto&& reuse_it = memory_pool_.find(size);
   if (reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
-    size_t free, total;
+    std::cout<<"No Reuse"<<std::endl;
+    size_t free, total = 12000;
     if (do_reuse_ && 
         ( !memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) 
         || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100))) {
@@ -127,6 +130,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
     used_memory_ += size;
     handle->SetDptr(ret, device_id_);
   } else {
+    std::cout<<"Reuse"<<std::endl;
     auto&& reuse_pool = reuse_it->second;
     auto ret = reuse_pool.back();
     reuse_pool.pop_back();
@@ -135,11 +139,15 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
 }
 
 void GPUPooledStorageManager::Free(Storage::Handle handle) {
+  std::cout<<"GPUPooled:Free "<<handle.id_<<std::endl;
   std::lock_guard<std::mutex> lock(Storage::Get()->GetMutex(Context::kGPU));
+  // If do reuse, no swapping has happened yet.
   if (do_reuse_) {
     size_t size = handle.size + NDEV;
     auto&& reuse_pool = memory_pool_[size];
     reuse_pool.push_back(handle.GetDptr());
+    // The address will be set to a different handle later
+    handle.Free();
   } else {
     DirectFreeNoLock(handle);
   }
@@ -148,6 +156,7 @@ void GPUPooledStorageManager::Free(Storage::Handle handle) {
 // FIXME(sotskin):DirectFreeNoLock does not know the device id of memory to be
 // freed
 void GPUPooledStorageManager::ReleaseAll() {
+  std::cout<<"Release All"<<std::endl;
   for (auto&& i : memory_pool_) {
     for (auto&& j : i.second) {
       Storage::Handle handle;

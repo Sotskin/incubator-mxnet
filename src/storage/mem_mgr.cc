@@ -27,32 +27,68 @@ MemoryManager::~MemoryManager() {
 }
 
 cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int device_id){
+  std::cout << "Malloc dev=" <<device_id <<std::endl;
   cudaSetDevice(device_id);
-  return cudaMalloc(&devptr, size);
+  cudaError_t e = cudaMalloc(&devptr, size);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << "Malloc failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  return e;
 }
 
 cudaError_t MemoryManager::Free(void* devptr, int device_id){
+  std::cout << "Free dev=" <<device_id <<std::endl;
   cudaSetDevice(device_id);
-  return cudaFree(devptr);
+  cudaError_t e = cudaFree(devptr);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << "Free failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  return e;
 }
 
 cudaError_t MemoryManager::Memcpy(int device_id, void* dst, const void* src,
     size_t count, enum cudaMemcpyKind kind) {
+  std::cout << "Memcpy dev=" <<device_id 
+    <<" dst="<<dst<<" src="<<src<<" size="<<count<<std::endl;
   cudaSetDevice(device_id);
-  return cudaMemcpy(dst, src, count, kind);
+  cudaError_t e =cudaMemcpy(dst, src, count, kind);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << "Free failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  return e;
 }
 
 cudaError_t MemoryManager::MemGetInfo(int device_id, size_t *total, 
     size_t* free) {
+  std::cout<<"MemGetInfo: Check"<<std::endl;
+  size_t free_, total_;
+  cudaError_t e = cudaMemGetInfo(&free_, &total_);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << e << " Check GetInfo failed: " << 
+      cudaGetErrorString(e) << std::endl;
+  } else {
+    std::cout<<free_<<" "<<total_<<std::endl;
+  }
+  std::cout<<"MemGetInfo: Check Over"<<std::endl;
   return cudaSuccess;
 }
 
 
 bool MemoryManager::TryAllocate(int device_id, size_t size) {
-  cudaSetDevice(device_id);
+  std::cout<<"TryAlloc device_id = " << device_id <<
+    " size = " << size <<std::endl;
+  cudaError_t e = cudaSetDevice(device_id);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << e << " TryAlloc SetDevice failed: " << cudaGetErrorString(e) << std::endl;
+  }
   size_t free, total;
-  cudaMemGetInfo(&free, &total);
-  return free  > size;
+  e = cudaMemGetInfo(&free, &total);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << e << " TryAlloc GetInfo failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  std::cout<<"TryAllocate: dev_id="<<device_id
+    <<" "<<free<<" "<<total<<std::endl;
+  return free > size + 3000000000;
 }
 
 } // namespace mxnet

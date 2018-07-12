@@ -77,11 +77,14 @@ handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, in
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
-    MemHistory::MemRecord r = 
+    MemHistory::MemRecord* r = 
         MemHistory::find(history[device][id], record_idx[device]);
-    if(r.record_step > latest_step) {
-      latest_step = r.record_step;
-      latest_id = r.handle_id;
+    // if record not found, will return -1
+    if(r == nullptr)
+      return -1;
+    if(r->record_step > latest_step) {
+      latest_step = r->record_step;
+      latest_id = r->handle_id;
     }
   }
   return latest_id;
@@ -169,21 +172,21 @@ void MemHistory::StopIteration() {
   */
 }
 
-MemHistory::MemRecord MemHistory::find(std::vector<MemHistory::MemRecord> 
+MemHistory::MemRecord* MemHistory::find(std::vector<MemHistory::MemRecord> 
     records, size_t step) {
   size_t start = 0;
   size_t end = (records.size() == 0) ? 0 : records.size() - 1;
   std::cout << "start: "<<start<<";end: "<<end<<std::endl;
   while(start < end) {
     if(start == records.size()-1)
-      return records[start];
+      return &records[start];
     if(end == 0)
-      return records[end];
+      return &records[end];
     size_t mid = (start + end) / 2;
     size_t c_step = records[mid].record_step;
     bool right_before = c_step < step && records[mid+1].record_step > step;
     if(c_step == step || right_before) {
-      return records[mid+1];
+      return &records[mid+1];
     } else if(c_step < step) {
       start = mid + 1;
     } else{
@@ -192,7 +195,7 @@ MemHistory::MemRecord MemHistory::find(std::vector<MemHistory::MemRecord>
   }
   // suppress warning of reaching end of non-void function
   // but actually should not reach here
-  return records[0];
+  return nullptr;
 }
 
 

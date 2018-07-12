@@ -55,7 +55,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
 // whose next reference is furthest in the future as victim.
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
-  if (iteration_idx_ == 0) {
+  if (iteration_idx_ <= 1) {
     std::cout << "DecideVictim start search, handles size = " << 
      handles.size() << std::endl;
     while (handles.find(ordered_history[device][fifo_index_].handle_id)
@@ -144,7 +144,7 @@ void MemHistory::StartIteration() {
 
 void MemHistory::StopIteration() {
   std::cout<<"Iteration Stopped"<<std::endl;
-  if (iteration_idx_ == 0) {
+  if (iteration_idx_ <= 1) {
     for (auto& _ordered_history : ordered_history) {
       _ordered_history.clear();
     }
@@ -172,7 +172,8 @@ void MemHistory::StopIteration() {
 MemHistory::MemRecord MemHistory::find(std::vector<MemHistory::MemRecord> 
     records, size_t step) {
   size_t start = 0;
-  size_t end = records.size() - 1;
+  size_t end = (records.size() == 0) ? 0 : records.size() - 1;
+  std::cout << "start: "<<start<<";end: "<<end<<std::endl;
   while(start < end) {
     if(start == records.size()-1)
       return records[start];

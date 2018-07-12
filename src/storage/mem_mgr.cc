@@ -76,6 +76,8 @@ cudaError_t BuddySystem::Free(void* ptr) {
   if (itr == memPool_.end()) return cudaErrorInvalidValue;
   Block* blockToBeInserted = itr->second;
   memPool_.erase(itr);
+  allocated_ -= blockToBeInserted->getSize();
+  free_ += blockToBeInserted->getSize();
   InsertBlock(blockToBeInserted);
   Merge(blockToBeInserted);
   return cudaSuccess;
@@ -102,6 +104,9 @@ void BuddySystem::InsertBlock(Block* block) {
   if (prev != NULL) {
     prev->setNext(block);
     block->setNext(curr);
+  } else {
+    block->setNext(freeList_[idx]);
+    freeList_[idx] = block;
   } 
 }
 

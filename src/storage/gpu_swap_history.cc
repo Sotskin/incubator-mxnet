@@ -55,9 +55,10 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
 // whose next reference is furthest in the future as victim.
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
-  if (iteration_idx_ <= 1) {
+  if (iteration_idx_ <= 2) {
     std::cout << "DecideVictim start search, handles size = " << 
-     handles.size() << std::endl;
+     handles.size() << " historysize = " << 
+     ordered_history[device].size() << std::endl;
     while (handles.find(ordered_history[device][fifo_index_].handle_id)
         == handles.end()) {
       std::cout << "DecideVictim fifo index = " << fifo_index_ << std::endl;
@@ -128,10 +129,10 @@ void MemHistory::StartIteration() {
   for(int i = 0; i < NUMBER_OF_GPU; i++) {
     record_idx[i] = 0;
   }
-  if(iteration_idx_ <= 1) {
+  if(iteration_idx_ <= 2) {
     is_recording_ = true;
   }
-  if(iteration_idx_ > 1) {
+  if(iteration_idx_ > 2) {
     /*
     for(int device = 0; device < NUMBER_OF_GPU; device++) {
       prefetcher_[device] = std::thread(&Prefetch::StartPrefetching, this, device);
@@ -147,7 +148,7 @@ void MemHistory::StartIteration() {
 
 void MemHistory::StopIteration() {
   std::cout<<"Iteration Stopped"<<std::endl;
-  if (iteration_idx_ <= 1) {
+  if (iteration_idx_ <= 2) {
     for (auto& _ordered_history : ordered_history) {
       _ordered_history.clear();
     }

@@ -11,6 +11,7 @@ def feed_args(net, arg_arrays):
             arr[:] = 0.0
 
 def test():
+    mx.base.start_iteration()
     print(sys.argv)
     parser = argparse.ArgumentParser("Benchmark Tests")
     parser.add_argument('model', type=str, default="resnet", help='The model to be tested.')
@@ -54,17 +55,21 @@ def test():
                  if name != 'data' and not name.endswith('label')}
 
     print('Argument grads: ', args_grad.keys())
-
+    print('Bind Start')
     executor = net.bind(ctx=default_ctx,
                         args=arg_arrays,
                         args_grad=args_grad,
                         grad_req='write',
                         group2ctx=group2ctx)
-
     feed_args(net, arg_arrays)
+    print('bind ends')
+    import time
+    time.sleep(10)
+    print('bind 1')
     all_time = []
     t0 = time.time()
     for i in range(num_loops):
+        mx.base.stop_iteration()
         print('=> loop %d' % i);
 	#uncomment this line to enable start_iteration()
         mx.base.start_iteration()
@@ -77,12 +82,12 @@ def test():
         for name, grad in args_grad.items():
             grad.wait_to_read()
         #uncomment this line to enable stop_iteration()
-	mx.base.stop_iteration()
         if len(outputs) > 0:
             outputs[-1].wait_to_read()
         ed_l = time.time()
         print('=> loop duration %f' % float(ed_l - st_l))
         all_time.append(float(ed_l - st_l))
+    mx.base.stop_iteration()
     t1 = time.time()
 
     duration = t1 - t0

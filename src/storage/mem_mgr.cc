@@ -53,7 +53,7 @@ cudaError_t MemoryManager::Memcpy(int device_id, void* dst, const void* src,
   cudaSetDevice(device_id);
   cudaError_t e =cudaMemcpy(dst, src, count, kind);
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << "Free failed: " << cudaGetErrorString(e) << std::endl;
+    std::cout << "Memcpy failed: " << cudaGetErrorString(e) << std::endl;
   }
   return e;
 }
@@ -88,7 +88,7 @@ bool MemoryManager::TryAllocate(int device_id, size_t size) {
   }
   std::cout<<"TryAllocate: dev_id="<<device_id
     <<" "<<free<<" "<<total<<std::endl;
-  return free > size + 3000000000;
+  return free > size + 2000000000;
 }
 
 } // namespace mxnet

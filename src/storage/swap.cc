@@ -55,7 +55,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     CHECK(target->dptr != nullptr);
     target->swapped_in = false;
     std::cout<<"3 "<<swap_info_[victim]->swapped_in<<" size="<<
-      target->size<<" dst="<<target->cpu_address<<" src="
+      target->size<<" dst="<<(void*)(target->cpu_address)<<" src="
       <<target->dptr<<std::endl;
     swappable_handles_[device_id].erase(victim);
     cudaError_t e = memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr, target->size, cudaMemcpyDeviceToHost);
@@ -83,7 +83,7 @@ void Swap::SwapIn(SwapInfo *info) {
     LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
   }
   std::cout<<"SwapIn Memcpy size="<<info->size<<" dst="<<info->dptr
-    <<" src="<<info->cpu_address<<std::endl;
+    <<" src="<<(void*)(info->cpu_address)<<std::endl;
   e = memory_manager_->Memcpy(info->device_id, info->dptr, info->cpu_address, info->size,
       cudaMemcpyHostToDevice);
   if (e != cudaSuccess && e != cudaErrorCudartUnloading) {

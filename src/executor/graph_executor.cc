@@ -1417,29 +1417,37 @@ void GraphExecutor::InitCachedOps() {
     std::copy(mutate_vars.begin(), mutate_vars.end(),
               std::inserter(all_vars, all_vars.end()));
     // setup exec vars
+    std::string iname = inode.source->attrs.name;
     Engine::Get()->PushAsync(
       [exec](RunContext rctx, Engine::CallbackOnComplete on_complete) {
         exec->Setup();
         on_complete();
       }, Context::CPU(), {}, all_vars, FnProperty::kNormal, 0,
       "SetupExec");
-    auto exec_fun = [exec, is_async, is_gpu] (
+    auto exec_fun = [exec, iname, is_async, is_gpu] (
         RunContext ctx, Engine::CallbackOnComplete on_complete) {
+      std::cout << "Name is " << iname << std::endl;
       if (is_async) {
         exec->op_ctx.async_on_complete = on_complete;
       }
+      std::cout << "RunF 1" << std::endl;
       exec->Run(ctx, is_gpu);
+      std::cout << "RunF 2" << std::endl;
       // call on complete only if it is async op
       if (!is_async) {
         if (is_gpu) {
         #if MXNET_USE_CUDA
           // Wait GPU kernel to finish.
+          std::cout << "RunF 3" << std::endl;
           ctx.get_stream<gpu>()->Wait();
+          std::cout << "RunF 4" << std::endl;
         #else
           LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
         #endif
         }
+        std::cout << "RunF 5" << std::endl;
         on_complete();
+        std::cout << "RunF 6" << std::endl;
       }
     };
     // setup the vars

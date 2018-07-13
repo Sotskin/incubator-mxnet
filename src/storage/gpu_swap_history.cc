@@ -66,7 +66,8 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
   if(IsPreRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     MemHistory::PreRecord(handle_id, operation_id, device);
-  } else if(IsRecording()) {
+  } 
+  if(IsRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     std::cout << "Record "<< handle_id << " " << size << std::endl;
     timestamp_t t = (duration_cast<microseconds>
@@ -104,8 +105,10 @@ handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device)
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ <= 2) {
+    std::cout << "No real history, lru used" << std::endl;
     return MemHistory::LRU(handles, device);
   }
+  std::cout << "History based victim decision" << std::endl;
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
@@ -166,9 +169,11 @@ void MemHistory::StartIteration() {
   if(iteration_idx_ == 2) {
     is_recording_ = true;
   } else if(iteration_idx_ > 2) {
+    /*
     Prefetch::Get()->StartPrefetching();
     while(!Prefetch::Get()->IsPrefetching())
       usleep(5);
+    */
   }
   begin_time_ = high_resolution_clock::now();
   std::cout<<"StartIteration end"<<std::endl;
@@ -179,9 +184,11 @@ void MemHistory::StopIteration() {
   pre_recording_ = false;
   is_recording_ = false;
   iteration_started_ = false;
+  /*
   if(Prefetch::Get()->IsPrefetching()) {
     Prefetch::Get()->StopPrefetching();
   }
+  */
   ++iteration_idx_;
   /*
   if(Prefetch::IsPrefetching()) {
@@ -196,7 +203,7 @@ MemHistory::MemRecord* MemHistory::find(std::vector<MemHistory::MemRecord>
     records, size_t step) {
   size_t start = 0;
   size_t end = (records.size() == 0) ? 0 : records.size() - 1;
-  std::cout << "start: "<<start<<";end: "<<end<<std::endl;
+  std::cout << "start: "<<start<<";end: "<<end<<";step: " << step<<std::endl;
   while(start < end) {
     if(start == records.size()-1)
       return &records[start];

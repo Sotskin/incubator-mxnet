@@ -22,7 +22,7 @@ using handle_id_t = unsigned long long;
 using timestamp_t = unsigned long long;
 using timestep_t = unsigned long long;
 
-const int NUMBER_OF_GPU = 8;
+const int NUMBER_OF_GPU = 1;
 
 class MemHistory {
 public:

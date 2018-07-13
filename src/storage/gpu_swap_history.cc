@@ -161,22 +161,11 @@ void MemHistory::StartIteration() {
     record_idx[i] = 0;
   }
   if(iteration_idx_ <= 2) {
-<<<<<<< HEAD
     pre_recording_ = true;
   }
   if(iteration_idx_ == 2) {
     is_recording_ = true;
   } else if(iteration_idx_ > 2) {
-=======
-    is_recording_ = true;
-  }
-  if(iteration_idx_ > 2) {
-    /*
-    for(int device = 0; device < NUMBER_OF_GPU; device++) {
-      prefetcher_[device] = std::thread(&Prefetch::StartPrefetching, this, device);
-    }
-    */
->>>>>>> 9d80a0d48aea5e3734c81155efbe10654b0b9921
     Prefetch::Get()->StartPrefetching();
     while(!Prefetch::Get()->IsPrefetching())
       usleep(5);
@@ -187,20 +176,7 @@ void MemHistory::StartIteration() {
 
 void MemHistory::StopIteration() {
   std::cout<<"Iteration Stopped"<<std::endl;
-<<<<<<< HEAD
   pre_recording_ = false;
-=======
-  if (iteration_idx_ <= 2) {
-    for (auto& _ordered_history : ordered_history) {
-      _ordered_history.clear();
-    }
-    for (auto& _history : history) {
-      _history.clear(); 
-    }
-    fifo_index_ = 0;
-  }
-  std::cout<<"1"<<std::endl;
->>>>>>> 9d80a0d48aea5e3734c81155efbe10654b0b9921
   is_recording_ = false;
   iteration_started_ = false;
   if(Prefetch::Get()->IsPrefetching()) {

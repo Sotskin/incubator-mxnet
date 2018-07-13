@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <unordered_set>
+#include <list>
 #include <vector>
 #include <set>
 #include <dmlc/logging.h>
@@ -14,8 +15,13 @@ namespace mxnet {
 MemHistory::MemHistory() {
   iteration_started_ = false;
   is_recording_ = false;
+  pre_recording_ = false;
   iteration_idx_ = 0;
-  fifo_index_ = 0;
+  history.resize(NUMBER_OF_GPU);
+  ordered_history.resize(NUMBER_OF_GPU);
+  lru_list.resize(NUMBER_OF_GPU);
+  lru_map.resize(NUMBER_OF_GPU);
+  record_idx.resize(NUMBER_OF_GPU);
 }
 
 MemHistory::~MemHistory() {}
@@ -30,15 +36,37 @@ MemHistory* MemHistory::Get() {
   return s;
 }
 
+void MemHistory::PreRecord(handle_id_t id, record_t op, int device) {
+  if(op == MemHistory::SET_ADDR) {
+    lru_list[device].push_front(id);
+    lru_map[device][id] = lru_list[device].begin();
+  } else if(op == MemHistory::GET_ADDR) {
+    if(lru_map[device][id] == lru_list[device].end()) {
+      lru_list[device].push_front(id);
+      lru_map[device][id] = lru_list[device].begin();
+    } else {
+      handle_id_t hid = *(lru_map[device][id]);
+      lru_list[device].remove(hid);
+      lru_list[device].push_front(hid);
+      lru_map[device][id] = lru_list[device].begin();
+    }
+  } else {
+    handle_id_t hid = *(lru_map[device][id]);
+    lru_list[device].remove(hid);
+    lru_map[device].erase(hid);
+  }
+}
+
 void MemHistory::PutRecord(handle_id_t handle_id, int device,
                           record_t operation_id, size_t size) {
   if(!IterationStarted()) { 
     std::cout << "iteration not started" << std::endl;
     return;
   }
-  if(!IsRecording()) {
-    std::cout << "Not recording" << std::endl;
-  } else {
+  if(IsPreRecording()) {
+    std::lock_guard<std::mutex> lock(mutex_[device]);
+    MemHistory::PreRecord(handle_id, operation_id, device);
+  } else if(IsRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     std::cout << "Record "<< handle_id << " " << size << std::endl;
     timestamp_t t = (duration_cast<microseconds>
@@ -47,32 +75,36 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
     MemRecord record = {handle_id, operation_id, t, record_step, size};
     history[device][handle_id].push_back(record);
     ordered_history[device].push_back(record);
+  } else {
+    std::cout << "Not recording" << std::endl;
   }
   record_idx[device]++;
+}
+
+handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device) {
+  handle_id_t victim = -1;
+  while(handles.find(lru_list[device].back()) == handles.end() ||
+    lru_list.size() == 0) {
+    handle_id_t temp_id = lru_list[device].back();
+    lru_map[device][temp_id] = lru_list[device].end();
+    lru_list[device].pop_back();
+  }
+  if(lru_list.size() == 0) {
+    std::cout << "No swappable handle found" << std::endl;
+  } else {
+    victim = lru_list[device].back();
+    lru_map[device][victim] = lru_list[device].end();
+    lru_list[device].pop_back();
+  }
+  return victim;
 }
 
 // optimal algorithm: assume iterations remain the same; choose the handle
 // whose next reference is furthest in the future as victim.
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
-  if (iteration_idx_ <= 1) {
-    std::cout << "DecideVictim start search, handles size = " << 
-     handles.size() << std::endl;
-    while (handles.find(ordered_history[device][fifo_index_].handle_id)
-        == handles.end()) {
-      std::cout << "DecideVictim fifo index = " << fifo_index_ << std::endl;
-      fifo_index_ ++;
-      if (fifo_index_ >= ordered_history[device].size()) {
-        // (sotskin) none of the handles is in the history
-        // should never happen
-        std::cout << "DecideVictim failed" << std::endl;
-        return -1;
-      }
-    }
-    std::cout << "DecideVictim search over" << std::endl;
-    std::cout << "DecideVictim return " << 
-      ordered_history[device][fifo_index_].handle_id << std::endl;
-    return ordered_history[device][fifo_index_].handle_id;
+  if (iteration_idx_ <= 2) {
+    return MemHistory::LRU(handles, device);
   }
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
@@ -128,15 +160,12 @@ void MemHistory::StartIteration() {
   for(int i = 0; i < NUMBER_OF_GPU; i++) {
     record_idx[i] = 0;
   }
-  if(iteration_idx_ <= 1) {
-    is_recording_ = true;
+  if(iteration_idx_ <= 2) {
+    pre_recording_ = true;
   }
-  if(iteration_idx_ > 1) {
-    /*
-    for(int device = 0; device < NUMBER_OF_GPU; device++) {
-      prefetcher_[device] = std::thread(&Prefetch::StartPrefetching, this, device);
-    }
-    */
+  if(iteration_idx_ == 2) {
+    is_recording_ = true;
+  } else if(iteration_idx_ > 2) {
     Prefetch::Get()->StartPrefetching();
     while(!Prefetch::Get()->IsPrefetching())
       usleep(5);
@@ -147,16 +176,7 @@ void MemHistory::StartIteration() {
 
 void MemHistory::StopIteration() {
   std::cout<<"Iteration Stopped"<<std::endl;
-  if (iteration_idx_ <= 1) {
-    for (auto& _ordered_history : ordered_history) {
-      _ordered_history.clear();
-    }
-    for (auto& _history : history) {
-      _history.clear(); 
-    }
-    fifo_index_ = 0;
-  }
-  std::cout<<"1"<<std::endl;
+  pre_recording_ = false;
   is_recording_ = false;
   iteration_started_ = false;
   if(Prefetch::Get()->IsPrefetching()) {

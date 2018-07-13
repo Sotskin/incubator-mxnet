@@ -88,7 +88,7 @@ bool MemoryManager::TryAllocate(int device_id, size_t size) {
   }
   std::cout<<"TryAllocate: dev_id="<<device_id
     <<" "<<free<<" "<<total<<std::endl;
-  return free > size + 3000000000;
+  return free > size + 1000000000;
 }
 
 } // namespace mxnet

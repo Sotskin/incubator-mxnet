@@ -93,6 +93,7 @@ class BuddySystem {
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
     ~BuddySystem();
+    Block* GetStart() { return start_; }
     size_t GetTotal() { return total_; }
     size_t GetFree() { return free_; }
     size_t GetAllocated() { return allocated_; }  

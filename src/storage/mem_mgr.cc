@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <math.h>
@@ -173,7 +174,11 @@ MemoryManager::MemoryManager() {
         if (avail <= 0) break;
     }
 
-    if (avail > 0) buddy_[deviceIdx] = new BuddySystem(new Block(wholeMemory, avail), avail, deviceIdx);
+    if (avail > 0) {
+      buddy_[deviceIdx] = new BuddySystem(new Block(wholeMemory, avail), avail, deviceIdx);
+    } else {
+      std::cout << "Warning: There's no memory left on device: " << deviceIdx << std::endl;
+    }
   } 
 }
 
@@ -185,7 +190,8 @@ MemoryManager::~MemoryManager() {
     MemoryPool mp = buddy->GetMemPool();
     while (!mp.empty()) {
       buddy->Free((void*)(mp.begin()->first));
-    }    
+    }
+    cudaFree((void*)buddy->GetStart());    
   }
 }
 

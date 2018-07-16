@@ -38,22 +38,25 @@ MemHistory* MemHistory::Get() {
 
 void MemHistory::PreRecord(handle_id_t id, record_t op, int device) {
   if(op == MemHistory::SET_ADDR) {
+    std::cout<<"Prerecord setaddr"<<std::endl;
     lru_list[device].push_front(id);
     lru_map[device][id] = lru_list[device].begin();
   } else if(op == MemHistory::GET_ADDR) {
+    std::cout<<"Prerecord getaddr"<<std::endl;
     if(lru_map[device][id] == lru_list[device].end()) {
       lru_list[device].push_front(id);
       lru_map[device][id] = lru_list[device].begin();
     } else {
-      handle_id_t hid = *(lru_map[device][id]);
-      lru_list[device].remove(hid);
-      lru_list[device].push_front(hid);
+      std::list<handle_id_t>::iterator hid = lru_map[device][id];
+      lru_list[device].erase(hid);
+      lru_list[device].push_front(id);
       lru_map[device][id] = lru_list[device].begin();
     }
   } else {
-    handle_id_t hid = *(lru_map[device][id]);
-    lru_list[device].remove(hid);
-    lru_map[device].erase(hid);
+    std::cout<<"Prerecord deladdr"<<std::endl;
+    std::list<handle_id_t>::iterator hid = lru_map[device][id];
+    lru_list[device].erase(hid);
+    lru_map[device].erase(id);
   }
 }
 
@@ -65,6 +68,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
   }
   if(IsPreRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
+    std::cout<<"Prerecord "<<handle_id<<std::endl;
     MemHistory::PreRecord(handle_id, operation_id, device);
   } 
   if(IsRecording()) {
@@ -84,13 +88,14 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
 
 handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device) {
   handle_id_t victim = -1;
-  while(handles.find(lru_list[device].back()) == handles.end() ||
-    lru_list.size() == 0) {
+  while(lru_list[device].size() != 0 &&
+    handles.find(lru_list[device].back()) == handles.end()) {
+    std::cout<<"list size:"<<lru_list[device].size()<<std::endl;
     handle_id_t temp_id = lru_list[device].back();
     lru_map[device][temp_id] = lru_list[device].end();
     lru_list[device].pop_back();
   }
-  if(lru_list.size() == 0) {
+  if(lru_list[device].size() == 0) {
     std::cout << "No swappable handle found" << std::endl;
   } else {
     victim = lru_list[device].back();
@@ -112,14 +117,17 @@ handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, in
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
-    MemHistory::MemRecord* r = 
-        MemHistory::find(history[device][id], record_idx[device]);
+    std::cout<<"Handle:"<<id<<";History size:"<<history[device][id].size()<<std::endl;
+    MemHistory::MemRecord r = {0,MemHistory::GET_ADDR,0,record_idx[device],0};
+    std::vector<MemHistory::MemRecord>::iterator it =
+      std::upper_bound(history[device][id].begin(), history[device][id].end(),
+      r, CompareByStep);
     // if record not found, will return -1
-    if(r == nullptr)
-      return -1;
-    if(r->record_step > latest_step) {
-      latest_step = r->record_step;
-      latest_id = r->handle_id;
+    if(it == history[device][id].end())
+      return id;
+    if(it->record_step > latest_step) {
+      latest_step = it->record_step;
+      latest_id = id;
     }
   }
   return latest_id;
@@ -201,6 +209,11 @@ void MemHistory::StopIteration() {
 
 MemHistory::MemRecord* MemHistory::find(std::vector<MemHistory::MemRecord> 
     records, size_t step) {
+  return nullptr;
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // NOTE: The following code is obsolete and may be buggy
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  /*
   size_t start = 0;
   size_t end = (records.size() == 0) ? 0 : records.size() - 1;
   std::cout << "start: "<<start<<";end: "<<end<<";step: " << step<<std::endl;
@@ -223,6 +236,7 @@ MemHistory::MemRecord* MemHistory::find(std::vector<MemHistory::MemRecord>
   // suppress warning of reaching end of non-void function
   // but actually should not reach here
   return nullptr;
+  */
 }
 
 

@@ -110,7 +110,7 @@ handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device)
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ <= 2) {
-    std::cout << "No real history, lru used" << std::endl;
+    std::cout << "No real history, lru used (idx = "<<iteration_idx_<<")"<< std::endl;
     return MemHistory::LRU(handles, device);
   }
   std::cout << "History based victim decision" << std::endl;

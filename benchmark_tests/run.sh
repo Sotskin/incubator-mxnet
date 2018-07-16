@@ -1,6 +1,7 @@
 LAYERS=269
 WIDE_SCALE=4
 
+export MXNET_ENGINE_TYPE=NaiveEngine
 export PYTHONPATH=/home/karl/debug_naive/incubator-mxnet/python
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 

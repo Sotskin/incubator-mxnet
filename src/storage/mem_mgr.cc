@@ -24,7 +24,7 @@ BuddySystem::BuddySystem(Block* start, size_t total, int gpuIdx)
     allocated_(0),
     free_(total),
     gpuIdx_(gpuIdx) {
-  freeListSize_ = getListSize(total);
+  freeListSize_ = GetListSize(total);
   freeList_ = new Block*[freeListSize_];
   for (int i = 0; i < freeListSize_; i++) {
     freeList_[i] = NULL;
@@ -33,7 +33,7 @@ BuddySystem::BuddySystem(Block* start, size_t total, int gpuIdx)
 }
 
 void* BuddySystem::Alloc(size_t size) {
-  int listIdx = getListIdx(size);
+  int listIdx = GetListIdx(size);
   int currIdx = listIdx;
   bool found = false;
   Block* blockToBeAllocated;
@@ -41,18 +41,18 @@ void* BuddySystem::Alloc(size_t size) {
   while(!found) {
     if (freeList_[listIdx] != NULL) {
       blockToBeAllocated = freeList_[listIdx];
-      freeList_[listIdx] = blockToBeAllocated->getNext();
-      blockToBeAllocated->setNext(NULL);
+      freeList_[listIdx] = blockToBeAllocated->GetNext();
+      blockToBeAllocated->SetNext(NULL);
       found = true; 
     } else if (currIdx < freeListSize_) {
       currIdx++;
       if (freeList_[currIdx] != NULL) {
         Block* blockToBeRemoved = freeList_[currIdx];
-        int blockSize = getListBlockSize(currIdx - 1);
-        InsertBlock(new Block(blockToBeRemoved->getData(), (size_t)blockSize));
-        InsertBlock(new Block(blockToBeRemoved->getData() + blockSize, blockToBeRemoved->getSize() - blockSize));
-        freeList_[currIdx] = blockToBeRemoved->getNext();
-        blockToBeRemoved->setNext(NULL);
+        int blockSize = GetListBlockSize(currIdx - 1);
+        InsertBlock(new Block(blockToBeRemoved->GetData(), (size_t)blockSize));
+        InsertBlock(new Block(blockToBeRemoved->GetData() + blockSize, blockToBeRemoved->GetSize() - blockSize));
+        freeList_[currIdx] = blockToBeRemoved->GetNext();
+        blockToBeRemoved->SetNext(NULL);
         currIdx = listIdx;
       }
     } else {
@@ -61,11 +61,11 @@ void* BuddySystem::Alloc(size_t size) {
   }
     
   if (found) {
-    size_t size = blockToBeAllocated->getSize();
+    size_t size = blockToBeAllocated->GetSize();
     allocated_ += size;
     free_ -= size;
-    memPool_[blockToBeAllocated->getData()] = blockToBeAllocated;
-    return (void*)(blockToBeAllocated->getData());
+    memPool_[blockToBeAllocated->GetData()] = blockToBeAllocated;
+    return (void*)(blockToBeAllocated->GetData());
   } else {
     return NULL;
   }    
@@ -76,15 +76,15 @@ cudaError_t BuddySystem::Free(void* ptr) {
   if (itr == memPool_.end()) return cudaErrorInvalidValue;
   Block* blockToBeInserted = itr->second;
   memPool_.erase(itr);
-  allocated_ -= blockToBeInserted->getSize();
-  free_ += blockToBeInserted->getSize();
+  allocated_ -= blockToBeInserted->GetSize();
+  free_ += blockToBeInserted->GetSize();
   InsertBlock(blockToBeInserted);
   Merge(blockToBeInserted);
   return cudaSuccess;
 }
 
 void BuddySystem::InsertBlock(Block* block) {
-  int idx = getListIdx(block->getSize()); 
+  int idx = GetListIdx(block->GetSize()); 
   if (freeList_[idx] == NULL) {
     freeList_[idx] = block;
     return;
@@ -96,45 +96,45 @@ void BuddySystem::InsertBlock(Block* block) {
   curr = freeList_[idx];
  
   while (curr != NULL) {
-    if (curr->getData() > block->getData()) break;
+    if (curr->GetData() > block->GetData()) break;
     prev = curr;
-    curr = curr->getNext();
+    curr = curr->GetNext();
   }  
 
   if (prev != NULL) {
-    prev->setNext(block);
-    block->setNext(curr);
+    prev->SetNext(block);
+    block->SetNext(curr);
   } else {
-    block->setNext(freeList_[idx]);
+    block->SetNext(freeList_[idx]);
     freeList_[idx] = block;
   } 
 }
 
 void BuddySystem::Merge(Block* block) {
-  int idx = getListIdx(block->getSize());
-  size_t listBlockSize = getListBlockSize((size_t)idx);
+  int idx = GetListIdx(block->GetSize());
+  size_t listBlockSize = GetListBlockSize((size_t)idx);
   Block* curr = freeList_[idx];
   Block* prev = NULL;
   
   while (curr != block && curr != NULL) {
     prev = curr;
-    curr = curr->getNext();
+    curr = curr->GetNext();
   } 
 
   if (curr == NULL) return;
-  if (curr->getNext() != NULL) {
-    Block* next = curr->getNext();
-    if ((curr->getData() + listBlockSize) == next->getData()) {
-      curr->setSize(curr->getSize() + next->getSize());
-      curr->setNext(next->getNext());
-      next->setNext(NULL);
+  if (curr->GetNext() != NULL) {
+    Block* next = curr->GetNext();
+    if ((curr->GetData() + listBlockSize) == next->GetData()) {
+      curr->SetSize(curr->GetSize() + next->GetSize());
+      curr->SetNext(next->GetNext());
+      next->SetNext(NULL);
     }
   }
   if (prev != NULL) {
-    if ((prev->getData() + listBlockSize) == curr->getData()) {
-      prev->setSize(prev->getSize() + curr->getSize());
-      prev->setNext(curr->getNext());
-      curr->setNext(NULL);
+    if ((prev->GetData() + listBlockSize) == curr->GetData()) {
+      prev->SetSize(prev->GetSize() + curr->GetSize());
+      prev->SetNext(curr->GetNext());
+      curr->SetNext(NULL);
       InsertBlock(prev);
       return;
     }
@@ -166,7 +166,7 @@ MemoryManager::MemoryManager() {
     size_t mb = 1 << 20;
     CUDA_CALL(cudaMemGetInfo(&avail, &total));
   
-    avail = static_cast<size_t>(avail * GPUUTILRATIO);  
+    avail = static_cast<size_t>(avail * GPU_UTIL_RATIO);  
     char* wholeMemory = NULL;
     while (cudaMalloc((void**)&wholeMemory, avail) == cudaErrorMemoryAllocation) {
         avail -= mb;
@@ -182,7 +182,7 @@ MemoryManager::~MemoryManager() {
   for (int deviceIdx = 0; deviceIdx < deviceCount_; deviceIdx++) {
     CUDA_CALL(cudaSetDevice(deviceIdx));
     BuddySystem* buddy = buddy_[deviceIdx];
-    MemoryPool mp = buddy->getMemPool();
+    MemoryPool mp = buddy->GetMemPool();
     while (!mp.empty()) {
       buddy->Free((void*)(mp.begin()->first));
     }    
@@ -206,7 +206,6 @@ cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
         
 cudaError_t MemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
   //TODO(qingsen): need implementation
-  std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
   return cudaMemcpy(dst, src, count, kind);
 }
@@ -216,17 +215,17 @@ cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
   if (buddy_[deviceIdx] == NULL) return cudaErrorInvalidValue;
-  *total = buddy_[deviceIdx]->getTotal();
-  *free = buddy_[deviceIdx]->getFree();
+  *total = buddy_[deviceIdx]->GetTotal();
+  *free = buddy_[deviceIdx]->GetFree();
   return cudaSuccess;
 }
 
 bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
   CUDA_CALL(cudaSetDevice(deviceIdx));
   BuddySystem* buddy = buddy_[deviceIdx];
-  Block** freeList = buddy->getFreeList();
-  int freeListSize = buddy->getFreeListSize();
-  int idx = getListIdx(size);
+  Block** freeList = buddy->GetFreeList();
+  int freeListSize = buddy->GetFreeListSize();
+  int idx = GetListIdx(size);
   if (idx == 0) idx = 1;
 
   for (int i = idx; i < freeListSize; i++) {

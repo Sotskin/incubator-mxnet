@@ -12,8 +12,8 @@
 
 namespace mxnet {
 
-const int MINALLOCSIZE_ = 128;
-const double GPUUTILRATIO = 0.95; //save some memory for each device(subject to change)
+const int MIN_ALLOC_SIZE = 128;
+const double GPU_UTIL_RATIO = 0.95; //save some memory for each device(subject to change)
 
 typedef enum {
   memStatus_Sucess,
@@ -28,7 +28,7 @@ typedef enum {
   blockStatus_Allocated
 } blockStatus_t;
 
-inline std::string memGetStatusString(memStatus_t status) {
+inline std::string MemGetStatusString(memStatus_t status) {
   switch (status) {
     case memStatus_Sucess: return "Sucess";
     case memStatus_InvalidValue: return "Invalid value";
@@ -38,22 +38,17 @@ inline std::string memGetStatusString(memStatus_t status) {
   return "Unknown error";
 }
 
-inline int nextPowerOfTwo(int size) {
-  int result = pow(2, ceil(log(size) / log(2)));
-  return result;
-}
-
-inline int getListIdx(size_t size) {
+inline int GetListIdx(size_t size) {
   if (size <= 128) return 0;
-  return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MINALLOCSIZE_)));
+  return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MIN_ALLOC_SIZE)));
 }
 
-inline int getListSize(size_t size) {
-  return getListIdx(size) + 1; 
+inline int GetListSize(size_t size) {
+  return GetListIdx(size) + 1; 
 }
 
-inline size_t getListBlockSize(int idx) {
-  return pow(2, idx + log2(static_cast<double>(MINALLOCSIZE_)));   
+inline size_t GetListBlockSize(int idx) {
+  return pow(2, idx + log2(static_cast<double>(MIN_ALLOC_SIZE)));   
 }
 
 class Block {
@@ -71,14 +66,14 @@ class Block {
         status_(blockStatus_Uninitialized) {
     }
 
-    char* getData() { return data_; }
-    size_t getSize() { return size_; }
-    Block* getNext() { return nextBlock_; }
+    char* GetData() { return data_; }
+    size_t GetSize() { return size_; }
+    Block* GetNext() { return nextBlock_; }
 
-    void setSize(size_t size) { size_ = size; }
-    void setNext(Block* b) { nextBlock_ = b; }
-    void setAllocated() { status_ = blockStatus_Allocated; }
-    void setFree() { status_ = blockStatus_Free; }
+    void SetSize(size_t size) { size_ = size; }
+    void SetNext(Block* b) { nextBlock_ = b; }
+    void SetAllocated() { status_ = blockStatus_Allocated; }
+    void SetFree() { status_ = blockStatus_Free; }
 }; // Class Block
 
 class BuddySystem {
@@ -90,31 +85,22 @@ class BuddySystem {
     size_t free_;
     int freeListSize_;
     int gpuIdx_;
-   
-  private:
     typedef std::map<char*, Block*> MemoryPool;
     MemoryPool memPool_;
+    void InsertBlock(Block* block);
+    void Merge(Block* block);
   
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
     ~BuddySystem();
-    
-  public:
-    size_t getTotal() { return total_; }
-    size_t getFree() { return free_; }
-    size_t getAllocated() { return allocated_; }  
-    int getFreeListSize() { return freeListSize_; }
-    Block** getFreeList() { return freeList_; }
-    MemoryPool getMemPool() { return memPool_; }  
- 
-  public:
+    size_t GetTotal() { return total_; }
+    size_t GetFree() { return free_; }
+    size_t GetAllocated() { return allocated_; }  
+    int GetFreeListSize() { return freeListSize_; }
+    Block** GetFreeList() { return freeList_; }
+    MemoryPool GetMemPool() { return memPool_; }  
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr); 
-    
-  private:
-    void InsertBlock(Block* block);
-    void Merge(Block* block);   
- 
 }; //Class BuddySystem
 
 class MemoryManager {
@@ -122,6 +108,7 @@ class MemoryManager {
     BuddySystem** buddy_;
     std::mutex mutex_;
     int deviceCount_;
+    MemoryManager();    
 
   public:
     ~MemoryManager();
@@ -133,9 +120,6 @@ class MemoryManager {
                        const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);   
     bool TryAllocate(int deviceId, size_t size);
-
-  private:
-    MemoryManager();
 };  // Class MemoryManager
 } //namespace mxnet
 #endif // MXNET_MEM_MGR_H_

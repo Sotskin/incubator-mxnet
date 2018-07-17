@@ -61,8 +61,13 @@ cudaError_t MemoryManager::Memcpy(int device_id, void* dst, const void* src,
 cudaError_t MemoryManager::MemGetInfo(int device_id, size_t *total, 
     size_t* free) {
   std::cout<<"MemGetInfo: Check"<<std::endl;
+  cudaError_t e = cudaSetDevice(device_id);
+  if(e != cudaSuccess) {
+    std::cout << e << " Check setdevice failed: " <<
+      cudaGetErrorString(e) << std::endl;
+  }
   size_t free_, total_;
-  cudaError_t e = cudaMemGetInfo(&free_, &total_);
+  e = cudaMemGetInfo(&free_, &total_);
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
     std::cout << e << " Check GetInfo failed: " << 
       cudaGetErrorString(e) << std::endl;

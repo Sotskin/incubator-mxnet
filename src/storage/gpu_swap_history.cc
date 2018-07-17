@@ -86,6 +86,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
     std::cout << "Not recording" << std::endl;
   }
   record_idx[device]++;
+  std::cout<<"cur record_idx = "<<record_idx[device]<<std::endl;
 }
 
 handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device) {
@@ -120,13 +121,24 @@ handle_id_t MemHistory::NaiveHistoryBased(
     std::vector<MemHistory::MemRecord>::iterator it =
       std::upper_bound(history[device][id].begin(), history[device][id].end(),
       r, CompareByStep);
-    if(it == history[device][id].end())
+    if(it == history[device][id].end()){
+      if(record_idx[device] - history[device][id].back().record_step < 10) {
+        std::cout<<"This victim is just used, skip"<<std::endl;
+        continue;
+      }
+      std::cout<<"This victim will not be used again"<<std::endl;
       return id;
+    } else if(std::prev(it) != history[device][id].begin() &&
+        record_idx[device] - std::prev(it)->record_step < 10){
+      std::cout<<"This victim is just used, skip"<<std::endl;
+      continue;
+    }
     if(it->record_step > latest_step) {
       latest_step = it->record_step;
       latest_id = id;
     }
   }
+  std::cout<<"This victim will be used on step = " << latest_step << std::endl;
   return latest_id;
 
 }

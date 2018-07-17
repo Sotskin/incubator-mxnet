@@ -1,6 +1,7 @@
 LAYERS=269
-WIDE_SCALE=4
+WIDE_SCALE=5
 
+export SWAP_ALGORITHM=1 
 export CUDA_VISIBLE_DEVICES=1
 export MXNET_ENGINE_TYPE=NaiveEngine
 export PYTHONPATH=/home/sotskin/incubator-mxnet/python

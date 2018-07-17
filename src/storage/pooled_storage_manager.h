@@ -149,6 +149,8 @@ void GPUPooledStorageManager::Free(Storage::Handle handle) {
     // The address will be set to a different handle later
     handle.Free();
   } else {
+    size_t a,b;
+    memory_manager_->MemGetInfo(device_id_, &a, &b);
     DirectFreeNoLock(handle);
   }
 }

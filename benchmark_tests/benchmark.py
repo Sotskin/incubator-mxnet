@@ -62,10 +62,9 @@ def test():
                         grad_req='write',
                         group2ctx=group2ctx)
     feed_args(net, arg_arrays)
-    print('bind ends')
     import time
     time.sleep(10)
-    print('bind 1')
+    print('Bind End')
     all_time = []
     t0 = time.time()
     for i in range(num_loops):

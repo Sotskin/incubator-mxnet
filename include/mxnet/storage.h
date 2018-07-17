@@ -74,10 +74,10 @@ class Storage {
       return Swap::Get()->GetAddr(id_);
     }
 
-    handle_id_t id_;
   private:
     static std::atomic<handle_id_t> base_id_;
     void* dptr_;
+    handle_id_t id_;
   }; // struct Handle
   /*!
    * \brief Allocate a new contiguous memory for a given size.

@@ -7,7 +7,7 @@
 #include <dmlc/logging.h>
 #include <mxnet/gpu_swap_history.h>
 #include <mxnet/swap.h>
-#include <mxnet/gpu_swap_prefetch.h>
+#include "./gpu_swap_prefetch.h"
 
 
 namespace mxnet {
@@ -15,7 +15,7 @@ namespace mxnet {
 Prefetch::Prefetch() {
   start_prefetching_ = false;
   stop_prefetching_ = false;
-  algorithm_ = dmlc::GetEnv("PREFETCH_ALGORITHM", 0);
+  prefetch_algorithm_ = dmlc::GetEnv("PREFETCH_ALGORITHM", 0);
   steps_ahead_ = dmlc::GetEnv("PREFETCH_STEP_AHEAD", 100);
   history_ = MemHistory::_GetSharedRef();
   for(int i = 0; i < NUMBER_OF_GPU; i++) {
@@ -57,7 +57,7 @@ void Prefetch::StopPrefetching() {
 void Prefetch::Prefetching(int device) {
   std::cout<<"Prefetching device="<<device<<std::endl;
   while(!stop_prefetching_) {
-    if(algorithm_ == 0) {
+    if(prefetch_algorithm_ == 0) {
       HistoryBasedPrefetch(device);
     }
     std::cout<<"Set Prefetching to True device="<<device<<std::endl;

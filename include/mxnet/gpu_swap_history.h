@@ -63,6 +63,8 @@ public:
   void PreRecord(handle_id_t handle_id, record_t operation_id, int device);
   void PutRecord(handle_id_t handle_id, int device, record_t type, size_t size);
   handle_id_t LRU(std::unordered_set<handle_id_t> handles, int device);
+  handle_id_t NaiveHistoryBased(std::unordered_set<handle_id_t> handles,
+    int device);
   handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device);
   void PrintRecord(int device);
   void StartIteration();
@@ -76,7 +78,7 @@ private:
   bool is_recording_;
   bool pre_recording_;
   size_t iteration_idx_;
-  size_t fifo_index_;
+  int swap_algorithm_;
   high_resolution_clock::time_point begin_time_;
   std::vector<std::mutex> mutex_ = std::vector<std::mutex>(NUMBER_OF_GPU);
 };  // class MemHistory

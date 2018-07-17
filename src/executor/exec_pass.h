@@ -34,8 +34,6 @@
 #include <vector>
 #include <memory>
 #include <string>
-// For debugging
-#include <mxnet/mem_mgr.h>
 
 namespace mxnet {
 namespace exec {

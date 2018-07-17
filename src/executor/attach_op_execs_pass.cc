@@ -31,8 +31,6 @@
 #include "../common/exec_utils.h"
 #include "./exec_pass.h"
 #include "../operator/nn/mkldnn/mkldnn_base-inl.h"
-// For debugging
-#include <mxnet/mem_mgr.h>
 
 namespace mxnet {
 
@@ -119,7 +117,6 @@ class StorageFallbackOpExecutor : public OpExecutor {
 class StatefulComputeExecutor : public StorageFallbackOpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"RunF 1.5 stateful start"<<std::endl;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
     InvalidateOutputs(out_array, req);
@@ -127,7 +124,6 @@ class StatefulComputeExecutor : public StorageFallbackOpExecutor {
     PreFCompute(is_gpu);
     fcompute_(state_, op_ctx, in_data_, req, out_data_);
     PostFCompute(is_gpu);
-    std::cout<<"RunF 1.5 stateful end"<<std::endl;
   }
 
   ExecType exec_type() const override {
@@ -160,13 +156,11 @@ class StatefulComputeExecutor : public StorageFallbackOpExecutor {
 class StatefulComputeExExecutor : public OpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"RunF 1.5 statefulex start"<<std::endl;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
     InvalidateOutputs(out_array, req);
 #endif
     fcompute_(state_, op_ctx, in_array, req, out_array);
-    std::cout<<"RunF 1.5 statefulex end"<<std::endl;
   }
 
   void Setup() override {}
@@ -199,7 +193,6 @@ class StatefulComputeExExecutor : public OpExecutor {
 class FComputeExecutor : public StorageFallbackOpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"RunF 1.5 fcompute start"<<std::endl;
     using namespace common;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
@@ -208,9 +201,6 @@ class FComputeExecutor : public StorageFallbackOpExecutor {
     PreFCompute(is_gpu);
     fcompute_(attrs_, op_ctx, in_data_, req, out_data_);
     PostFCompute(is_gpu);
-    size_t t, f;
-    MemoryManager::Get()->MemGetInfo(0,&t, &f);
-    std::cout<<"RunF 1.5 fcompute end"<<std::endl;
   }
 
   ExecType exec_type() const override {
@@ -233,13 +223,11 @@ class FComputeExecutor : public StorageFallbackOpExecutor {
 class FComputeExExecutor : public OpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"RunF 1.5 fcomputeEx start"<<std::endl;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
     InvalidateOutputs(out_array, req);
 #endif
     fcompute_(attrs_, op_ctx, in_array, req, out_array);
-    std::cout<<"RunF 1.5 fcomputeEx end"<<std::endl;
   }
 
   void Setup() override {}

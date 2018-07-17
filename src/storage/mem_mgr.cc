@@ -27,7 +27,6 @@ MemoryManager::~MemoryManager() {
 }
 
 cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int device_id){
-  std::cout << "Malloc dev=" <<device_id <<std::endl;
   cudaSetDevice(device_id);
   cudaError_t e = cudaMalloc(&devptr, size);
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
@@ -37,7 +36,6 @@ cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int device_id){
 }
 
 cudaError_t MemoryManager::Free(void* devptr, int device_id){
-  std::cout << "Free dev=" <<device_id <<std::endl;
   cudaSetDevice(device_id);
   cudaError_t e = cudaFree(devptr);
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
@@ -48,8 +46,6 @@ cudaError_t MemoryManager::Free(void* devptr, int device_id){
 
 cudaError_t MemoryManager::Memcpy(int device_id, void* dst, const void* src,
     size_t count, enum cudaMemcpyKind kind) {
-  std::cout << "Memcpy dev=" <<device_id 
-    <<" dst="<<dst<<" src="<<src<<" size="<<count<<std::endl;
   cudaSetDevice(device_id);
   cudaError_t e =cudaMemcpy(dst, src, count, kind);
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
@@ -80,8 +76,6 @@ cudaError_t MemoryManager::MemGetInfo(int device_id, size_t *total,
 
 
 bool MemoryManager::TryAllocate(int device_id, size_t size) {
-  std::cout<<"TryAlloc device_id = " << device_id <<
-    " size = " << size <<std::endl;
   cudaError_t e = cudaSetDevice(device_id);
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
     std::cout << e << " TryAlloc SetDevice failed: " << cudaGetErrorString(e) << std::endl;
@@ -91,8 +85,6 @@ bool MemoryManager::TryAllocate(int device_id, size_t size) {
   if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
     std::cout << e << " TryAlloc GetInfo failed: " << cudaGetErrorString(e) << std::endl;
   }
-  std::cout<<"TryAllocate: dev_id="<<device_id
-    <<" "<<free<<" "<<total<<std::endl;
   return free > size + 1000000000;
 }
 

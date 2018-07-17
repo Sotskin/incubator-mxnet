@@ -42,7 +42,6 @@ void Prefetch::StartPrefetching() {
   for(int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device] = std::thread(&Prefetch::Prefetching, this, device);
   }
-  std::cout<<"StartPrefetching ends"<<std::endl;
 }
 
 
@@ -55,12 +54,10 @@ void Prefetch::StopPrefetching() {
 
 
 void Prefetch::Prefetching(int device) {
-  std::cout<<"Prefetching device="<<device<<std::endl;
   while(!stop_prefetching_) {
     if(prefetch_algorithm_ == 0) {
       HistoryBasedPrefetch(device);
     }
-    std::cout<<"Set Prefetching to True device="<<device<<std::endl;
     start_prefetching_ = true;
     usleep(1);
   }
@@ -69,11 +66,9 @@ void Prefetch::Prefetching(int device) {
 
 void Prefetch::HistoryBasedPrefetch(int device) {
   //pthread_rwlock_rdlock(&swap_lock_);
-  std::cout<<"HistoryBasedPrefetch device="<<device<<std::endl;
   //bool has_begun = false;
   while(lookahead_pos_[device]+1 < history_->ordered_history[device].size() 
       && lookahead_pos_[device] - history_->record_idx[device] <= steps_ahead_) {
-    std::cout<<"HistoryBasedPrefetch: Waiting"<<std::endl;
     MemHistory::MemRecord r =
         history_->ordered_history[device][++lookahead_pos_[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {
@@ -83,7 +78,6 @@ void Prefetch::HistoryBasedPrefetch(int device) {
     }
   }
   //pthread_rwlock_unlock(&swap_lock_);
-  std::cout<<"HistoryBasedPrefetch End device="<<device<<std::endl;
 }
 
 

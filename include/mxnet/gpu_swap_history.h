@@ -69,7 +69,6 @@ public:
   void PrintRecord(int device);
   void StartIteration();
   void StopIteration();
-  MemRecord* find(std::vector<MemRecord> records, size_t target_step);
 
 private:
   MemHistory();

@@ -74,7 +74,6 @@ class Storage {
       return Swap::Get()->GetAddr(id_);
     }
 
-
   private:
     static std::atomic<handle_id_t> base_id_;
     void* dptr_;

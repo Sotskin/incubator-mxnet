@@ -1,5 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
+/* * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -80,6 +79,7 @@ class GPUPooledStorageManager final : public StorageManager {
     if (err != cudaSuccess && err != cudaErrorCudartUnloading) {
       LOG(FATAL) << "CUDA: " << cudaGetErrorString(err);
     }
+    handle.Free();
     used_memory_ -= size;
   }
  
@@ -108,9 +108,10 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
   size_t size = handle->size + NDEV;
   auto&& reuse_it = memory_pool_.find(size);
   if (reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
-    size_t free, total;
-    if (!memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) 
-        || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100)) {
+    size_t free, total = 12000;
+    if (do_reuse_ && 
+        ( !memory_manager_->TryAllocate(device_id_, size + total * reserve_ / 100) 
+        || !memory_manager_->TryAllocate(device_id_, total * reserve_ / 100))) {
       do_reuse_ = false;
       ReleaseAll();
     }
@@ -132,10 +133,13 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
 
 void GPUPooledStorageManager::Free(Storage::Handle handle) {
   std::lock_guard<std::mutex> lock(Storage::Get()->GetMutex(Context::kGPU));
+  // If do reuse, no swapping has happened yet.
   if (do_reuse_) {
     size_t size = handle.size + NDEV;
     auto&& reuse_pool = memory_pool_[size];
     reuse_pool.push_back(handle.GetDptr());
+    // The address will be set to a different handle later
+    handle.Free();
   } else {
     DirectFreeNoLock(handle);
   }

@@ -7,7 +7,7 @@
 #include <dmlc/logging.h>
 #include <mxnet/gpu_swap_history.h>
 #include <mxnet/swap.h>
-#include <mxnet/gpu_swap_prefetch.h>
+#include "./gpu_swap_prefetch.h"
 
 
 namespace mxnet {
@@ -15,11 +15,20 @@ namespace mxnet {
 Prefetch::Prefetch() {
   start_prefetching_ = false;
   stop_prefetching_ = false;
-  algorithm_ = dmlc::GetEnv("PREFETCH_ALGORITHM", 0);
+  prefetch_algorithm_ = dmlc::GetEnv("PREFETCH_ALGORITHM", std::string("NaiveHistory"));
   steps_ahead_ = dmlc::GetEnv("PREFETCH_STEP_AHEAD", 100);
   history_ = MemHistory::_GetSharedRef();
+  lookahead_pos_ = std::vector<int>(NUMBER_OF_GPU);
+  prefetcher_ = std::vector<std::thread>(NUMBER_OF_GPU);
   for(int i = 0; i < NUMBER_OF_GPU; i++) {
     lookahead_pos_[i] = -1;
+  }
+  if (prefetch_algorithm_ == "NaiveHistory") {
+    DoPrefetch = &Prefetch::HistoryBasedPrefetch;
+  } else { 
+    std::cout << "Unknown Prefetch Algorithm: " << prefetch_algorithm_
+      << std::endl;
+    CHECK(0);
   }
 }
 
@@ -55,23 +64,18 @@ void Prefetch::StopPrefetching() {
 
 void Prefetch::Prefetching(int device) {
   while(!stop_prefetching_) {
-    if(algorithm_ == 0) {
-      HistoryBasedPrefetch(device);
-    }
+    (this->*DoPrefetch)(device);
     start_prefetching_ = true;
     usleep(1);
   }
 }
 
-
+// TODO(sotskin): karll: Add algorithm discription
 void Prefetch::HistoryBasedPrefetch(int device) {
-  pthread_rwlock_rdlock(&swap_lock_);
+  //pthread_rwlock_rdlock(&swap_lock_);
   //bool has_begun = false;
-  bool not_end =
-      lookahead_pos_[device]+1 < history_->ordered_history[device].size();
-  bool too_ahead =
-      lookahead_pos_[device] - history_->record_idx[device] > steps_ahead_;
-  while(not_end && !too_ahead) {
+  while(lookahead_pos_[device]+1 < history_->ordered_history[device].size() 
+      && lookahead_pos_[device] - history_->record_idx[device] <= steps_ahead_) {
     MemHistory::MemRecord r =
         history_->ordered_history[device][++lookahead_pos_[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {
@@ -80,7 +84,7 @@ void Prefetch::HistoryBasedPrefetch(int device) {
       std::cout << "non-read operation found" << std::endl;
     }
   }
-  pthread_rwlock_unlock(&swap_lock_);
+  //pthread_rwlock_unlock(&swap_lock_);
 }
 
 

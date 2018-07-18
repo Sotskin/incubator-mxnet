@@ -64,6 +64,7 @@ def test():
     feed_args(net, arg_arrays)
     import time
     time.sleep(10)
+    # TODO(sotksin): Find a way to know the end of a binding
     print('Bind End')
     all_time = []
     t0 = time.time()

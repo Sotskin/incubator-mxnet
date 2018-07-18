@@ -18,12 +18,20 @@ MemHistory::MemHistory() {
   is_recording_ = false;
   pre_recording_ = false;
   iteration_idx_ = 0;
-  swap_algorithm_ = dmlc::GetEnv("SWAP_ALGORITHM", 0);
+  swap_algorithm_ = dmlc::GetEnv("SWAP_ALGORITHM", std::string("LRU"));
   history.resize(NUMBER_OF_GPU);
   ordered_history.resize(NUMBER_OF_GPU);
   lru_list.resize(NUMBER_OF_GPU);
   lru_map.resize(NUMBER_OF_GPU);
   record_idx.resize(NUMBER_OF_GPU);
+  if(swap_algorithm_ == "LRU"){
+    DoDecide = &MemHistory::LRU;
+  } else if(swap_algorithm_ == "NaiveHistory") {
+    DoDecide = &MemHistory::NaiveHistoryBased;
+  } else {
+    std::cout << "Unknown Algorithm Name: " << swap_algorithm_ << std::endl;
+    CHECK(0);
+  }
 }
 
 MemHistory::~MemHistory() {}
@@ -80,6 +88,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
   record_idx[device]++;
 }
 
+// LRU: Swapout the least recently used handle
 handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device) {
   handle_id_t victim = -1;
   while(lru_list[device].size() != 0 &&
@@ -89,7 +98,8 @@ handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device)
     lru_list[device].pop_back();
   }
   if(lru_list[device].size() == 0) {
-    std::cout << "No swappable handle found" << std::endl;
+    std::cout << "LRU: No Swappable Handle Found" << std::endl;
+    CHECK(0);
   } else {
     victim = lru_list[device].back();
     lru_map[device][victim] = lru_list[device].end();
@@ -98,15 +108,16 @@ handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device)
   return victim;
 }
 
+// NaiveHistory: assume iterations remain the same; choose the handle
+// whose next reference is furthest in the future as victim.
 handle_id_t MemHistory::NaiveHistoryBased(
   std::unordered_set<handle_id_t> handles, int device) {
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
     MemHistory::MemRecord r = {0,MemHistory::GET_ADDR,0,record_idx[device],0};
-    std::vector<MemHistory::MemRecord>::iterator it =
-      std::upper_bound(history[device][id].begin(), history[device][id].end(),
-      r, CompareByStep);
+    auto it = std::upper_bound(history[device][id].begin(), 
+        history[device][id].end(), r, CompareByStep);
     if(it == history[device][id].end()){
       if(record_idx[device] - history[device][id].back().record_step < 10) {
         // Victim just used, skip
@@ -126,19 +137,12 @@ handle_id_t MemHistory::NaiveHistoryBased(
 
 }
 
-// optimal algorithm: assume iterations remain the same; choose the handle
-// whose next reference is furthest in the future as victim.
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ <= 2) {
     return MemHistory::LRU(handles, device);
   } else {
-    if(swap_algorithm_ == 0)
-      return MemHistory::LRU(handles, device);
-    else if(swap_algorithm_ == 1)
-      return MemHistory::NaiveHistoryBased(handles, device);
-    else
-      return 0;
+    return (this->*DoDecide)(handles, device);
   }
 }
 
@@ -179,7 +183,7 @@ void MemHistory::StartIteration() {
   for(int i = 0; i < NUMBER_OF_GPU; i++) {
     record_idx[i] = 0;
   }
-  if(iteration_idx_ <= 2 || swap_algorithm_ == 0) {
+  if(iteration_idx_ <= 2 || swap_algorithm_ == "LRU") {
     pre_recording_ = true;
   }
   if(iteration_idx_ == 2) {

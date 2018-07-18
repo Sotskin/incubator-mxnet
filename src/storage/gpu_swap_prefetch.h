@@ -17,7 +17,6 @@ public:
   static std::shared_ptr<Prefetch> _GetSharedRef();
   void StartPrefetching();
   void StopPrefetching();
-  void HistoryBasedPrefetch(int device);
   bool IsPrefetching() {return start_prefetching_;}
 
 private:
@@ -25,17 +24,19 @@ private:
   Prefetch();
   void Prefetching(int device);
 
-  std::vector<int> lookahead_pos_ =
-      std::vector<int>(NUMBER_OF_GPU);
-  std::vector<std::thread> prefetcher_ =
-      std::vector<std::thread>(NUMBER_OF_GPU);
+  std::vector<int> lookahead_pos_;
+  std::vector<std::thread> prefetcher_;
   pthread_rwlock_t swap_lock_;
   std::shared_ptr<MemHistory> history_;
   bool start_prefetching_;
   bool stop_prefetching_;
-  int prefetch_algorithm_;
+  std::string prefetch_algorithm_;
   int steps_ahead_;
-
+  
+  void (Prefetch::*DoPrefetch)(int);
+  // Prefetch algorithm declarations
+  void HistoryBasedPrefetch(int device);
+  
 }; // class prefetch
 
 } // namespace mxnet

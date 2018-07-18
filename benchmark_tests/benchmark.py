@@ -71,7 +71,6 @@ def test():
     t0 = time.time()
     for i in range(num_loops):
         print('=> loop %d' % i);
-	#uncomment this line to enable start_iteration()
         mx.base.start_iteration()
         st_l = time.time()
         outputs = executor.forward()
@@ -83,7 +82,6 @@ def test():
             grad.wait_to_read()
         if len(outputs) > 0:
             outputs[-1].wait_to_read()
-        #uncomment this line to enable stop_iteration()
         mx.base.stop_iteration()
         ed_l = time.time()
         print('=> loop duration %f' % float(ed_l - st_l))

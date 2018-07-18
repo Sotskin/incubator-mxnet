@@ -64,12 +64,12 @@ def test():
     feed_args(net, arg_arrays)
     import time
     time.sleep(10)
+    mx.base.stop_iteration()
     # TODO(sotksin): Find a way to know the end of a binding
     print('Bind End')
     all_time = []
     t0 = time.time()
     for i in range(num_loops):
-        mx.base.stop_iteration()
         print('=> loop %d' % i);
 	#uncomment this line to enable start_iteration()
         mx.base.start_iteration()
@@ -81,13 +81,13 @@ def test():
           executor.backward()
         for name, grad in args_grad.items():
             grad.wait_to_read()
-        #uncomment this line to enable stop_iteration()
         if len(outputs) > 0:
             outputs[-1].wait_to_read()
+        #uncomment this line to enable stop_iteration()
+        mx.base.stop_iteration()
         ed_l = time.time()
         print('=> loop duration %f' % float(ed_l - st_l))
         all_time.append(float(ed_l - st_l))
-    mx.base.stop_iteration()
     t1 = time.time()
 
     duration = t1 - t0

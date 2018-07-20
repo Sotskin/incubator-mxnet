@@ -1440,6 +1440,7 @@ void GraphExecutor::InitCachedOps() {
           // Wait GPU kernel to finish.
           std::cout<<"RunF 3"<<std::endl;
           ctx.get_stream<gpu>()->Wait();
+          Swap::Get()->UnlockSwap();
           std::cout<<"RunF 4"<<std::endl;
         #else
           LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
@@ -1448,7 +1449,6 @@ void GraphExecutor::InitCachedOps() {
         std::cout<<"RunF 5"<<std::endl;
         on_complete();
         std::cout<<"RunF 6"<<std::endl;
-        Swap::Get()->UnlockSwap();
       } else {
         Swap::Get()->UnlockSwap();
       }
@@ -1697,6 +1697,7 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
       // Wait GPU kernel to finish.
       std::cout<<"RunF2 3"<<std::endl;
       ctx.get_stream<gpu>()->Wait();
+      Swap::Get()->UnlockSwap();
       std::cout<<"RunF2 4"<<std::endl;
 #else
       LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
@@ -1705,7 +1706,6 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
     std::cout<<"RunF2 5"<<std::endl;
     on_complete();
     std::cout<<"RunF2 6"<<std::endl;
-    Swap::Get()->UnlockSwap();
   };
   opr_names.pop_back();
   opr_names += "]";

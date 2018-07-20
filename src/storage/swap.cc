@@ -38,10 +38,21 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     return;
   }
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
+    std::cout<<"ask v"<<std::endl;
     handle_id_t victim = 
       memory_history_->DecideVictim(swappable_handles_[device_id], device_id);
     std::cout<<"Swapout victim = "<<victim<<std::endl;
+    if(swap_info_.find(victim) == swap_info_.end()) {
+      std::cout<<"Victim does not exist (deleted?)"<<std::endl;
+      CHECK(0);
+    }
     SwapInfo *target = swap_info_[victim];
+    std::cout<<" size = "<<target->size<<std::endl;
+    if(target->size < 1024) {
+      std::cout<<"Skip"<<std::endl;
+      swappable_handles_[device_id].erase(victim);
+      continue;
+    }
     if(target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
     }
@@ -106,6 +117,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
 }
 
 void Swap::DelAddr(handle_id_t handle_id) {
+  std::cout<<"Deladdr "<<handle_id<<std::endl;
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
@@ -126,6 +138,8 @@ void Swap::DelAddr(handle_id_t handle_id) {
 // TODO(sotskin) compatibility for MKLMEM
 void* Swap::GetAddr(handle_id_t handle_id) {
   std::cout<<"GetAddr " << handle_id << std::endl;
+  size_t t,f;
+  memory_manager_->MemGetInfo(0,&t,&f);
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
@@ -157,6 +171,8 @@ int Swap::UpdateFree(int device) {
 void Swap::LockSwap() {
   std::cout<<"Lock Swap, locked = "  << (int)swap_locked_ << std::endl;
   pthread_rwlock_wrlock(&swap_lock_);
+  size_t t,f;
+  memory_manager_->MemGetInfo(0,&t,&f);
   swap_locked_ = true;
   pthread_rwlock_unlock(&swap_lock_);
   std::cout<<"Lock Swap, over"<<std::endl;
@@ -164,11 +180,17 @@ void Swap::LockSwap() {
 
 void Swap::UnlockSwap() {
   std::cout<<"Unlock Swap, locked = "  << (int)swap_locked_ << std::endl;
+  size_t t,f;
+  memory_manager_->MemGetInfo(0,&t,&f);
   if(swap_locked_ == false) return;
   pthread_rwlock_wrlock(&swap_lock_);
   swap_locked_ = false;
   for (int i = 0; i < NUMBER_OF_GPU; ++i) {
     while (!locked_handles_[i].empty()) {
+      if(swap_info_.find(locked_handles_[i].top()) == swap_info_.end()){
+        locked_handles_[i].pop();
+        continue;
+      }
       swappable_handles_[i].insert(locked_handles_[i].top());
       std::cout<<"Unlock "<<locked_handles_[i].top()<<std::endl;
       locked_handles_[i].pop();

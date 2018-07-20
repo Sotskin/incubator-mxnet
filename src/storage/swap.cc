@@ -48,7 +48,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     }
     SwapInfo *target = swap_info_[victim];
     std::cout<<" size = "<<target->size<<std::endl;
-    if(target->size < 1024) {
+    if(target->size < 20240) {
       std::cout<<"Skip"<<std::endl;
       swappable_handles_[device_id].erase(victim);
       continue;

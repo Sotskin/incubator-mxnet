@@ -1429,26 +1429,20 @@ void GraphExecutor::InitCachedOps() {
       if (is_async) {
         exec->op_ctx.async_on_complete = on_complete;
       }
-      std::cout<<"RunF 1"<<std::endl;
       Swap::Get()->LockSwap();
       exec->Run(ctx, is_gpu);
-      std::cout<<"RunF 2"<<std::endl;
       // call on complete only if it is async op
       if (!is_async) {
         if (is_gpu) {
         #if MXNET_USE_CUDA
           // Wait GPU kernel to finish.
-          std::cout<<"RunF 3"<<std::endl;
           ctx.get_stream<gpu>()->Wait();
           Swap::Get()->UnlockSwap();
-          std::cout<<"RunF 4"<<std::endl;
         #else
           LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
         #endif
         }
-        std::cout<<"RunF 5"<<std::endl;
         on_complete();
-        std::cout<<"RunF 6"<<std::endl;
       } else {
         Swap::Get()->UnlockSwap();
       }
@@ -1685,27 +1679,19 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
     // Run all opr in the sub-graph
     // TODO(sotskin): Compatibility for non gpu
     Swap::Get()->LockSwap();
-    std::cout<<"RunF2 1"<<std::endl;
     for (auto &exec : exec_list) {
-      std::cout<<"RunF2 1.5"<<std::endl;
       exec->Run(ctx, is_gpu);
-      std::cout<<"RunF2 1.8"<<std::endl;
     }
-    std::cout<<"RunF2 2"<<std::endl;
     if (is_gpu) {
 #if MXNET_USE_CUDA
       // Wait GPU kernel to finish.
-      std::cout<<"RunF2 3"<<std::endl;
       ctx.get_stream<gpu>()->Wait();
       Swap::Get()->UnlockSwap();
-      std::cout<<"RunF2 4"<<std::endl;
 #else
       LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
 #endif
     }
-    std::cout<<"RunF2 5"<<std::endl;
     on_complete();
-    std::cout<<"RunF2 6"<<std::endl;
   };
   opr_names.pop_back();
   opr_names += "]";

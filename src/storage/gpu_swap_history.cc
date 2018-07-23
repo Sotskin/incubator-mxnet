@@ -119,17 +119,22 @@ handle_id_t MemHistory::NaiveHistoryBased(
     auto it = std::upper_bound(history[device][id].begin(), 
         history[device][id].end(), r, CompareByStep);
     if(it == history[device][id].end()){
+      /*
       if(it != history[device][id].begin() && 
           record_idx[device] - history[device][id].back().record_step < 10) {
         // Victim just used, skip
         continue;
       }
+      */
       return id;
-    } else if(it != history[device][id].begin() &&
+    } 
+    /*
+    else if(it != history[device][id].begin() &&
         std::prev(it) != history[device][id].begin() &&
         record_idx[device] - std::prev(it)->record_step < 10){
       continue;
     }
+    */
     if(it->record_step > latest_step) {
       latest_step = it->record_step;
       latest_id = id;

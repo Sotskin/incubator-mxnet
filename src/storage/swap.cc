@@ -125,13 +125,15 @@ void Swap::DelAddr(handle_id_t handle_id) {
 }
 
 // TODO(sotskin) compatibility for MKLMEM
-void* Swap::GetAddr(handle_id_t handle_id) {
+void* Swap::GetAddr(handle_id_t handle_id, bool prefetch) {
   pthread_rwlock_wrlock(&swap_lock_);
   auto info = swap_info_.at(handle_id);
-  if (info->device_id != -1) {
+  if (info->device_id != -1 && !prefetch) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR, info->size);
   }
   if (!info->swapped_in) {
+    if(!prefetch)
+      ++(memory_history_->cache_miss);
     SwapIn(info);
   }
   if (swap_locked_ && 

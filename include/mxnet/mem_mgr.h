@@ -43,7 +43,7 @@ inline int GetListIdx(size_t size) {
   return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MIN_ALLOC_SIZE)));
 }
 
-inline int GetListSize(size_t size) {
+inline unsigned long GetListSize(size_t size) {
   return GetListIdx(size) + 1; 
 }
 
@@ -89,6 +89,7 @@ class BuddySystem {
     MemoryPool memPool_;
     void InsertBlock(Block* block);
     void Merge(Block* block);
+    void RemoveDuplicateBlockPtr(void);
   
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
@@ -99,6 +100,7 @@ class BuddySystem {
     size_t GetAllocated() { return allocated_; }  
     int GetFreeListSize() { return freeListSize_; }
     Block** GetFreeList() { return freeList_; }
+    int GetGPUIdx() { return gpuIdx_; }
     MemoryPool GetMemPool() { return memPool_; }  
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr); 

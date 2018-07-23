@@ -23,6 +23,7 @@
  * \brief graph executor
  */
 #include <mxnet/base.h>
+#include <mxnet/swap.h>
 #include <nnvm/graph.h>
 #include <nnvm/pass_functions.h>
 #include <vector>
@@ -1428,6 +1429,7 @@ void GraphExecutor::InitCachedOps() {
       if (is_async) {
         exec->op_ctx.async_on_complete = on_complete;
       }
+      Swap::Get()->LockSwap();
       exec->Run(ctx, is_gpu);
       // call on complete only if it is async op
       if (!is_async) {
@@ -1435,11 +1437,14 @@ void GraphExecutor::InitCachedOps() {
         #if MXNET_USE_CUDA
           // Wait GPU kernel to finish.
           ctx.get_stream<gpu>()->Wait();
+          Swap::Get()->UnlockSwap();
         #else
           LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
         #endif
         }
         on_complete();
+      } else {
+        Swap::Get()->UnlockSwap();
       }
     };
     // setup the vars
@@ -1672,6 +1677,8 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
   auto exec_fun = [exec_list, is_gpu] (
       RunContext ctx, Engine::CallbackOnComplete on_complete) {
     // Run all opr in the sub-graph
+    // TODO(sotskin): Compatibility for non gpu
+    Swap::Get()->LockSwap();
     for (auto &exec : exec_list) {
       exec->Run(ctx, is_gpu);
     }
@@ -1679,6 +1686,7 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
 #if MXNET_USE_CUDA
       // Wait GPU kernel to finish.
       ctx.get_stream<gpu>()->Wait();
+      Swap::Get()->UnlockSwap();
 #else
       LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
 #endif

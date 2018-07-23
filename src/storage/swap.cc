@@ -25,6 +25,7 @@ Swap::Swap() {
     locks_[i] = PTHREAD_RWLOCK_INITIALIZER;
     free_memory_.push_back(0);
   }
+  swap_locked_ = false;
 }
 
 Swap::~Swap() {
@@ -38,6 +39,10 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
     handle_id_t victim = 
       memory_history_->DecideVictim(swappable_handles_[device_id], device_id);
+    if(swap_info_.find(victim) == swap_info_.end()) {
+      std::cout<<"Victim does not exist (deleted?)"<<std::endl;
+      CHECK(0);
+    }
     SwapInfo *target = swap_info_[victim];
     if(target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
@@ -90,7 +95,8 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
   if (iter == swap_info_.end()){
     SwapInfo* info = new SwapInfo{handle_id, true, device_id, dptr, nullptr, size};
     swap_info_[handle_id] = info;
-    if (device_id != -1){
+    // FIXME(Sotskin): Temporaty Fix
+    if (device_id != -1 && size >= 20240){
       swappable_handles_[device_id].insert(handle_id);
     }
   } else {
@@ -128,6 +134,12 @@ void* Swap::GetAddr(handle_id_t handle_id) {
   if (!info->swapped_in) {
     SwapIn(info);
   }
+  if (swap_locked_ && 
+      swappable_handles_[info->device_id].find(handle_id) != 
+      swappable_handles_[info->device_id].end()) {
+    swappable_handles_[info->device_id].erase(handle_id);
+    locked_handles_[info->device_id].push(handle_id);
+  }
   pthread_rwlock_unlock(&swap_lock_);
   return info->dptr;
 }
@@ -141,4 +153,26 @@ int Swap::UpdateFree(int device) {
   return device;
 }
 
+void Swap::LockSwap() {
+  pthread_rwlock_wrlock(&swap_lock_);
+  swap_locked_ = true;
+  pthread_rwlock_unlock(&swap_lock_);
+}
+
+void Swap::UnlockSwap() {
+  if(swap_locked_ == false) return;
+  pthread_rwlock_wrlock(&swap_lock_);
+  swap_locked_ = false;
+  for (int i = 0; i < NUMBER_OF_GPU; ++i) {
+    while (!locked_handles_[i].empty()) {
+      if(swap_info_.find(locked_handles_[i].top()) == swap_info_.end()){
+        locked_handles_[i].pop();
+        continue;
+      }
+      swappable_handles_[i].insert(locked_handles_[i].top());
+      locked_handles_[i].pop();
+    }
+  }
+  pthread_rwlock_unlock(&swap_lock_);
+}
 } // namespace mxnet

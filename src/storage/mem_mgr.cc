@@ -33,7 +33,8 @@ BuddySystem::BuddySystem(Block* start, size_t total, int gpuIdx)
   }
   if (freeListSize_ > 0) freeList_[freeListSize_ - 1] = start;
   std::cout << "Buddy System No." << gpuIdx << " initialization finished." <<std::endl;
-}
+  PrintFreeList();
+} 
 
 void* BuddySystem::Alloc(size_t size) {
   std::cout << "Buddy System No." << gpuIdx_ << ": Allocating size = " << size << " bytes" << std::endl;
@@ -79,9 +80,11 @@ void* BuddySystem::Alloc(size_t size) {
     memPool_[blockToBeAllocated->GetData()] = blockToBeAllocated;
     std::cout << "SUCCESS: Buddy System No." << gpuIdx_ << " list index = " << listIdx << " block size = " << size << 
                  " at address = " << (void*)blockToBeAllocated->GetData() << std::endl;
+    PrintFreeList();
     return (void*)(blockToBeAllocated->GetData());
   } else {
     std::cout << "FAILURE: Buddy System No." << gpuIdx_ << " cannot allocate size = " << size << " bytes" << std::endl;
+    PrintFreeList();
     return NULL;
   }    
 }
@@ -104,13 +107,14 @@ cudaError_t BuddySystem::Free(void* ptr) {
   std::cout << "SUCCESS: Free completed: " << ptr << std::endl;
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
+  PrintFreeList();
   return cudaSuccess;
 }
 
 void BuddySystem::InsertBlock(Block* block) {
   //std::cout << "Block to insert has size: " << block->GetSize() << std::endl;
   int idx = GetListIdx(block->GetSize()); 
-  std::cout << "Block actually inserted at list index = " << idx << std::endl;
+  std::cout << "Block inserted at list index = " << idx << std::endl;
   //std::cout << "Block should be inserted at list index: " << idx << std::endl;
   if (freeList_[idx] == NULL) {
     //std::cout << "Block inserted at head of list index: " << idx << std::endl;
@@ -173,8 +177,34 @@ void BuddySystem::Merge(Block* block) {
   InsertBlock(curr);
 }
 
-void RemoveDuplicateBlockPtr() {
-  return;
+void BuddySystem::PrintFreeList() {
+  std::cout << "====================================================" << std::endl;
+  std::cout << "Free List Info" << std::endl;
+  std::cout << "====================================================" << std::endl;
+  for (int i = 0; i < freeListSize_; i++ ) {
+    std::cout << "Free List Index = " << i << std::endl;
+    Block* curr = freeList_[i];
+    while (curr != NULL) {
+      std::cout << "Block addr = " << (void*)curr->GetData() << " size = " << curr->GetSize() << " ===>" << std::endl;
+      curr = curr->GetNext();
+    }
+    std::cout << "\n";
+    std::cout << "-----------------------------------------------------------------------------" << std::endl;
+  }
+}
+
+void BuddySystem::CheckDuplicate() {
+  std::set<char*> addr;
+    for (int i = 0; i < freeListSize_; i++) {
+      Block * curr = freeList_[i];
+      while (curr != NULL) {
+        const bool inSet = addr.find(curr->GetData()) != addr.end();
+        assert(inSet == false);
+        if (inSet == true) std::cout << "This block with address = " << (void*)curr->GetData() << 
+                                        " appeared more than once." << std::endl;
+        curr = curr->GetNext();
+      }
+    }
 }
 
 MemoryManager* MemoryManager::Get() {

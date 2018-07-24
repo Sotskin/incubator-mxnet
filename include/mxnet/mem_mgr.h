@@ -89,8 +89,9 @@ class BuddySystem {
     MemoryPool memPool_;
     void InsertBlock(Block* block);
     void Merge(Block* block);
-    void RemoveDuplicateBlockPtr(void);
-  
+    void PrintFreeList();
+    void CheckDuplicate();
+ 
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
     ~BuddySystem();

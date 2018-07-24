@@ -11,6 +11,7 @@ def feed_args(net, arg_arrays):
             arr[:] = 0.0
 
 def test():
+    mx.base.start_iteration()
     print(sys.argv)
     parser = argparse.ArgumentParser("Benchmark Tests")
     parser.add_argument('model', type=str, default="resnet", help='The model to be tested.')
@@ -54,20 +55,23 @@ def test():
                  if name != 'data' and not name.endswith('label')}
 
     print('Argument grads: ', args_grad.keys())
-
+    print('Bind Start')
     executor = net.bind(ctx=default_ctx,
                         args=arg_arrays,
                         args_grad=args_grad,
                         grad_req='write',
                         group2ctx=group2ctx)
-
     feed_args(net, arg_arrays)
+    import time
+    time.sleep(10)
+    mx.base.stop_iteration()
+    # TODO(sotksin): Find a way to know the end of a binding
+    print('Bind End')
     all_time = []
     t0 = time.time()
     for i in range(num_loops):
         print('=> loop %d' % i);
-	#uncomment this line to enable start_iteration()
-        #mx.base.start_iteration()
+        mx.base.start_iteration()
         st_l = time.time()
         outputs = executor.forward()
         if num_classes is None:
@@ -76,10 +80,9 @@ def test():
           executor.backward()
         for name, grad in args_grad.items():
             grad.wait_to_read()
-        #uncomment this line to enable stop_iteration()
-	#mx.base.stop_iteration()
         if len(outputs) > 0:
             outputs[-1].wait_to_read()
+        mx.base.stop_iteration()
         ed_l = time.time()
         print('=> loop duration %f' % float(ed_l - st_l))
         all_time.append(float(ed_l - st_l))

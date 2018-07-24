@@ -119,7 +119,8 @@ void StorageImpl::Alloc(Storage::Handle* handle) {
 #if MXNET_USE_CUDA
             CUDA_CALL(cudaGetDeviceCount(&num_gpu_device));
             CHECK_GT(num_gpu_device, 0) << "GPU usage requires at least 1 GPU";
-            ptr = new storage::GPUPooledStorageManager();
+            ptr = new storage::GPUPooledStorageManager(
+                handle->ctx.real_dev_id());
 #else
             LOG(FATAL) << "Compile with USE_CUDA=1 to enable GPU usage";
 #endif  // MXNET_USE_CUDA

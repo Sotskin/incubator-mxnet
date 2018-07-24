@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <unordered_map>
 #include <memory>
+#include <stack>
 #include <mxnet/gpu_swap_history.h>
 #include <mxnet/mem_mgr.h>
 #if MXNET_USE_CUDA
@@ -33,16 +34,20 @@ public:
   void* GetAddr(handle_id_t handle_id);
   // Update size of free space for the device.
   int UpdateFree(int device); 
+  void LockSwap();
+  void UnlockSwap();
 
 private:
   Swap();
   std::unordered_map<handle_id_t, SwapInfo*> swap_info_;
   std::unordered_set<handle_id_t> swappable_handles_[NUMBER_OF_GPU];
+  std::stack<handle_id_t> locked_handles_[NUMBER_OF_GPU];
   std::vector<size_t> free_memory_;
   std::shared_ptr<MemHistory> memory_history_;
   std::shared_ptr<MemoryManager> memory_manager_;
   pthread_rwlock_t swap_lock_;
   pthread_rwlock_t locks_[NUMBER_OF_GPU];
+  bool swap_locked_;
 }; // Class Swap
 
 } // namespace mxnet

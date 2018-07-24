@@ -1,3 +1,6 @@
+# Naive Test results
+benchmark_tests/
+
 # Compiled Object files
 *.slo
 *.lo

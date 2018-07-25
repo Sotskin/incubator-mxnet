@@ -55,10 +55,13 @@ void Prefetch::StartPrefetching() {
 
 
 void Prefetch::StopPrefetching() {
+  /*
   stop_prefetching_ = true;
   for(int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device].join();
   }
+  */
+  Swap::Get()->PrintHandles();
 }
 
 

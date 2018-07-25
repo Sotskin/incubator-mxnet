@@ -52,12 +52,19 @@ public:
   bool IterationStarted() {return iteration_started_;}
   bool IsPreRecording() {return pre_recording_;}
   bool IsRecording() {return is_recording_;}
+  size_t GetIterationIdx() {return iteration_idx_;}
   void PreRecord(handle_id_t handle_id, record_t operation_id, int device);
   void PutRecord(handle_id_t handle_id, int device, record_t type, size_t size);
   void PrintRecord(int device);
   void StartIteration();
   void StopIteration();
-  handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device);
+  handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device, void* arg);
+  // Logs
+  size_t num_swap_in;
+  size_t num_swap_out;
+  size_t swap_in_total;
+  size_t swap_out_total;
+  size_t num_get_addr;
 
 private:
   MemHistory();
@@ -68,11 +75,12 @@ private:
   std::string swap_algorithm_;
   high_resolution_clock::time_point begin_time_;
   std::vector<std::mutex> mutex_ = std::vector<std::mutex>(NUMBER_OF_GPU);
-  handle_id_t (MemHistory::*DoDecide)(std::unordered_set<handle_id_t>, int);
+  handle_id_t (MemHistory::*DoDecide)(std::unordered_set<handle_id_t>, int, void*);
   // Swap algorithm declaration
-  handle_id_t LRU(std::unordered_set<handle_id_t> handles, int device);
+  handle_id_t LRU(std::unordered_set<handle_id_t> handles, int device, void* arg);
   handle_id_t NaiveHistoryBased(std::unordered_set<handle_id_t> handles,
-    int device);
+    int device, void* arg);
+
 };  // class MemHistory
 
 } // namespace mxnet

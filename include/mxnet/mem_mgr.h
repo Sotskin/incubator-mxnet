@@ -88,7 +88,8 @@ class BuddySystem {
     typedef std::map<char*, Block*> MemoryPool;
     MemoryPool memPool_;
     void InsertBlock(Block* block);
-    void Merge(Block* block);
+    Block* Merge(Block* block, int idx);
+    void MergeFreeList();
     void PrintFreeList();
     void CheckDuplicate();
  

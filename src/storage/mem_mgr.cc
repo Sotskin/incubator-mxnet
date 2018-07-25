@@ -42,6 +42,7 @@ void* BuddySystem::Alloc(size_t size) {
   int currIdx = listIdx;
   bool found = false;
   Block* blockToBeAllocated;
+  std::cout << "Block of required size are supposed to be allocated from list index = " << listIdx << std::endl;
 
   while(!found) {
     if (freeList_[listIdx] != NULL) {
@@ -102,8 +103,9 @@ cudaError_t BuddySystem::Free(void* ptr) {
   free_ += blockToBeInserted->GetSize();
   int idx = GetListIdx(blockToBeInserted->GetSize());
   std::cout << "Block suppposed to be inserted at index = " << idx << std::endl;
+  std::cout << "Initially: ";
   InsertBlock(blockToBeInserted);
-  Merge(blockToBeInserted);
+  Merge(blockToBeInserted, idx);
   std::cout << "SUCCESS: Free completed: " << ptr << std::endl;
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
@@ -143,38 +145,93 @@ void BuddySystem::InsertBlock(Block* block) {
   //std::cout << "Block inserted in the middle of list index: " << idx << std::endl;
 }
 
-void BuddySystem::Merge(Block* block) {
-  int idx = GetListIdx(block->GetSize());
+Block* BuddySystem::Merge(Block* block, int idx) {
+  std::cout << "Trying to merge desired block" << std::endl;
+  idx = GetListIdx(block->GetSize());
   size_t listBlockSize = GetListBlockSize((size_t)idx);
   Block* curr = freeList_[idx];
   Block* prev = NULL;
-  
+  Block* prevPrev = NULL;
+  bool mergedWithPrev = false; 
+  bool mergedWithNext = false;
+  //bool merged = false;
+ 
   while (curr != block && curr != NULL) {
+    prevPrev = prev;
     prev = curr;
     curr = curr->GetNext();
   } 
-
+ 
   if (curr == NULL) return;
-  if (curr->GetNext() != NULL) {
-    Block* next = curr->GetNext();
-    if ((curr->GetData() + listBlockSize) == next->GetData()) {
-      curr->SetSize(curr->GetSize() + next->GetSize());
-      curr->SetNext(next->GetNext());
-      next->SetNext(NULL);
-      std::cout << "Merged with the next block" << std::endl;
-    }
-  }
+ 
   if (prev != NULL) {
+    //if can merge with previous block, merge and remove curr block
     if ((prev->GetData() + listBlockSize) == curr->GetData()) {
       prev->SetSize(prev->GetSize() + curr->GetSize());
       prev->SetNext(curr->GetNext());
       curr->SetNext(NULL);
-      InsertBlock(prev);
+      mergedWithPrev = true;
       std::cout << "Merged with the previous block" << std::endl;
-      return;
     }
-  }
-  InsertBlock(curr);
+  } 
+
+  //if merge with previous block, check if it can be merged with next block
+  if (mergedWithPrev) {
+    if (prev->GetNext() != NULL) {
+      Block* next = prev->GetNext();
+      if ((prev->GetData() + prev->GetSize()) == next->GetData()) {
+        prev->SetSize(prev->GetSize() + next->GetSize());
+   	prev->SetNext(next->GetNext());
+        next->SetNext(NULL);
+        mergedWithNext = true;
+        std::cout << "Merged with the next block" << std::cout;
+      }
+    }
+  } else { //if did not merge with previous block(i.e curr still exists), check if it can be merged with next block
+    if (curr->GetNext() != NULL) {
+      Block* next = curr->GetNext();
+      if ((curr->GetData() + listBlockSize) == next->GetData()) {
+        curr->SetSize(curr->GetSize() + next->GetSize());
+        curr->SetNext(next->GetNext());
+        next->SetNext(NULL);
+        mergedWithNext = true;
+        std::cout << "Merged with the next block" << std::endl;
+      }
+    }
+  } 
+
+  if (mergedWithPrev) {
+    if (prevPrev != NULL) {
+      prevPrev->SetNext(prev->GetNext());
+    } else {
+      freeList_[idx] = prev->GetNext();
+    }
+    prev->SetNext(NULL);
+    std::cout << "Inserting merged block: ";
+    InsertBlock(prev);
+  } else if (mergedWithNext) {
+      if (prev != NULL) {
+        prev->SetNext(curr->GetNext());
+      } else {
+        freeList_[idx] = curr->GetNext();
+      }
+      curr->SetNext(NULL);
+      std::cout << "Inserting merged block: ";
+      InsertBlock(curr);
+  }  
+
+  //if (prev != NULL) {
+  //  if ((prev->GetData() + listBlockSize) == curr->GetData()) {
+  //    prev->SetSize(prev->GetSize() + curr->GetSize());
+  //    prev->SetNext(curr->GetNext());
+  //    curr->SetNext(NULL);
+  //    InsertBlock(prev);
+  //    std::cout << "Merged with the previous block" << std::endl;
+  //    return;
+  //  }
+  //}
+  //if (merged == false) std::cout << "IGNORE LOG: ";
+  //InsertBlock(curr);
 }
 
 void BuddySystem::PrintFreeList() {
@@ -188,8 +245,7 @@ void BuddySystem::PrintFreeList() {
       std::cout << "Block addr = " << (void*)curr->GetData() << " size = " << curr->GetSize() << " ===>" << std::endl;
       curr = curr->GetNext();
     }
-    std::cout << "\n";
-    std::cout << "-----------------------------------------------------------------------------" << std::endl;
+    std::cout << "---------------------------------------------------" << std::endl;
   }
 }
 

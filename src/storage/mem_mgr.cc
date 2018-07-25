@@ -34,6 +34,13 @@ BuddySystem::BuddySystem(Block* start, size_t total, int gpuIdx)
   if (freeListSize_ > 0) freeList_[freeListSize_ - 1] = start;
   std::cout << "Buddy System No." << gpuIdx << " initialization finished." <<std::endl;
   PrintFreeList();
+}
+
+BuddySystem::~BuddySystem() {
+  while (!memPool_.empty()) {
+    std::cout << "Destructing block at addr: " << (void*)memPool_.begin()->first << std::endl;
+    Free((void*)memPool_.begin()->first);
+  }
 } 
 
 void* BuddySystem::Alloc(size_t size) {
@@ -105,11 +112,11 @@ cudaError_t BuddySystem::Free(void* ptr) {
   std::cout << "Block suppposed to be inserted at index = " << idx << std::endl;
   std::cout << "Initially: ";
   InsertBlock(blockToBeInserted);
-  MergeFreeList();
+  //MergeFreeList();
   std::cout << "SUCCESS: Free completed: " << ptr << std::endl;
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
-  if (allocated_ <= CLEAN_UP_BOUNDRY) CleanUp();
+  PrintMemPool();
   PrintFreeList();
   return cudaSuccess;
 }
@@ -303,6 +310,16 @@ void BuddySystem::CleanUp() {
     }
   }
 
+  std::cout << "First remove all nodes in the existing free list" << std:: endl;
+  PrintFreeList();
+  std::cout << "Display all nodes" << std::endl;
+  Block* printPtr = tempList;
+  while (printPtr != NULL) {
+    std::cout << "Block addr = " << (void*)printPtr->GetData() << " size = " << printPtr->GetSize() <<
+                 " ==========>" << std::endl;
+    printPtr = printPtr->GetNext();
+  }
+
   //merge the nodes in the temp list
   Block* curr = tempList;
   while (curr != NULL) {
@@ -320,11 +337,39 @@ void BuddySystem::CleanUp() {
     }
   }
 
+  std::cout << "After the merge we have nodes:" << std::endl;
+  printPtr = tempList;
+  while (printPtr != NULL) {
+    std::cout << "Block addr = " << (void*)printPtr->GetData() << " size = " << printPtr->GetSize() <<
+                 " ==========>" << std::endl;
+    printPtr = printPtr->GetNext();
+  }
+
   //insert the nodes in the temp list back into the free list
   curr = tempList;
   while (curr != NULL) {
+    Block* next = curr->GetNext();
+    curr->SetNext(NULL);
     InsertBlock(curr);
-    curr = curr->GetNext();
+    curr = next;
+  }
+ 
+  std::cout << "After the clean up the free list is: " << std::endl;
+}
+
+void BuddySystem::PrintMemPool() {
+  if (memPool_.empty()) {
+    std::cout << "Memory pool is empty" << std::endl;
+    return;
+  }  
+
+  std::cout << "===================================================" << std::endl;
+  std::cout << "Printing Memory Pool:" << std::endl;
+  
+  std::map<char*, Block*>::const_iterator itr = memPool_.begin();
+  while (itr != memPool_.end()) {
+    std::cout << "Block addr = " << (void*)itr->first << " size = " << itr->second->GetSize() << std::endl;
+    itr++;
   }
 }
 
@@ -377,10 +422,12 @@ MemoryManager::~MemoryManager() {
   for (int deviceIdx = 0; deviceIdx < deviceCount_; deviceIdx++) {
     CUDA_CALL(cudaSetDevice(deviceIdx));
     BuddySystem* buddy = buddy_[deviceIdx];
-    MemoryPool mp = buddy->GetMemPool();
-    while (!mp.empty()) {
-      buddy->Free((void*)(mp.begin()->first));
-    }
+    buddy->~BuddySystem();
+    //MemoryPool mp = buddy->GetMemPool();
+    //while (!mp.empty()) {
+    //  std::cout << "Destructing block at addr: " << (void*)mp.bigin()->first() << std::endl;
+    //  buddy->Free((void*)(mp.begin()->first));
+    //}
     cudaFree((void*)buddy->GetStart());    
     std::cout << "Buddy System No." << buddy->GetGPUIdx() << " destructed" << std::endl;
   }
@@ -436,6 +483,18 @@ bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
       return true;
     }
   }
+
+  if (buddy->GetAllocated() < CLEAN_UP_BOUNDRY) {
+    std::cout << "Starting clean up process" << std::endl;
+    buddy->CleanUp();
+  }
+ 
+  for (int i = idx; i < freeListSize; i++) {
+    if (freeList[i] != NULL) {
+      std::cout << "SUCCESS: There is enough space" << std::endl;
+      return true;
+    }
+  } 
 
   std::cout << "FAILURE: There isn't enough space" << std::endl;
   return false;

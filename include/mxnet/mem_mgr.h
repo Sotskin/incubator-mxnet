@@ -93,7 +93,7 @@ class BuddySystem {
     void MergeFreeList();
     void PrintFreeList();
     void CheckDuplicate();
-    void CleanUp();
+    void PrintMemPool();
  
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
@@ -108,6 +108,7 @@ class BuddySystem {
     MemoryPool GetMemPool() { return memPool_; }  
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr); 
+    void CleanUp();
 }; //Class BuddySystem
 
 class MemoryManager {

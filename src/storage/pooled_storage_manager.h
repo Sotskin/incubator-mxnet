@@ -32,7 +32,6 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
-#include <mxnet/mem_mgr.h>
 #include <new>
 #include "./storage_manager.h"
 #include "../common/cuda_utils.h"

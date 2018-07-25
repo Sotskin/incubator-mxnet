@@ -39,6 +39,9 @@ public:
     return r1.record_step < r2.record_step;
   }
 
+  unsigned prefetch_count;
+  unsigned cache_miss;
+
   std::vector<std::map<handle_id_t, std::vector<MemRecord> > > history;
   std::vector<std::vector<MemRecord> > ordered_history;
   std::vector<std::list<handle_id_t> > lru_list;

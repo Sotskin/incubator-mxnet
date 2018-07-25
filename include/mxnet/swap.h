@@ -34,7 +34,7 @@ public:
   void SwapIn(SwapInfo *info);
   void SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id);
   void DelAddr(handle_id_t handle_id);
-  void* GetAddr(handle_id_t handle_id);
+  void* GetAddr(handle_id_t handle_id, bool prefetch = false);
   void LockSwap();
   void UnlockSwap();
   void PrintHandles();

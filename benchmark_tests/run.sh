@@ -1,7 +1,6 @@
-# Suggested Setting: Layers=269 Batch_size=4 Wide_scale=4 
-LAYERS=$1
-BATCH_SIZE=$2
-WIDE_SCALE=$3
+LAYERS=$269
+BATCH_SIZE=$4
+WIDE_SCALE=$4
 
 echo "LAYERS = ${LAYERS}"
 echo "BATCH_SIZE = ${BATCH_SIZE}"

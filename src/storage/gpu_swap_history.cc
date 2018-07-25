@@ -24,6 +24,7 @@ MemHistory::MemHistory() {
   lru_list.resize(NUMBER_OF_GPU);
   lru_map.resize(NUMBER_OF_GPU);
   record_idx.resize(NUMBER_OF_GPU);
+  std::cout << "Swap Algorithm: " << swap_algorithm_ << std::endl;
   if(swap_algorithm_ == "LRU"){
     DoDecide = &MemHistory::LRU;
   } else if(swap_algorithm_ == "NaiveHistory") {
@@ -196,11 +197,11 @@ void MemHistory::StartIteration() {
   if(iteration_idx_ == 2) {
     is_recording_ = true;
   } else if(iteration_idx_ > 2) {
-    /*
+    
     Prefetch::Get()->StartPrefetching();
     while(!Prefetch::Get()->IsPrefetching())
       usleep(5);
-    */
+    
   }
   begin_time_ = high_resolution_clock::now();
 }
@@ -209,11 +210,11 @@ void MemHistory::StopIteration() {
   pre_recording_ = false;
   is_recording_ = false;
   iteration_started_ = false;
-  /*
+  
   if(Prefetch::Get()->IsPrefetching()) {
     Prefetch::Get()->StopPrefetching();
   }
-  */
+  
   ++iteration_idx_;
 }
 

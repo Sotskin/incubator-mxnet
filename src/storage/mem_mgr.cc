@@ -105,7 +105,7 @@ cudaError_t BuddySystem::Free(void* ptr) {
   std::cout << "Block suppposed to be inserted at index = " << idx << std::endl;
   std::cout << "Initially: ";
   InsertBlock(blockToBeInserted);
-  Merge(blockToBeInserted, idx);
+  MergeFreeList();
   std::cout << "SUCCESS: Free completed: " << ptr << std::endl;
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
@@ -162,7 +162,7 @@ Block* BuddySystem::Merge(Block* block, int idx) {
     curr = curr->GetNext();
   } 
  
-  if (curr == NULL) return;
+  if (curr == NULL) return NULL;
  
   if (prev != NULL) {
     //if can merge with previous block, merge and remove curr block
@@ -203,22 +203,34 @@ Block* BuddySystem::Merge(Block* block, int idx) {
   if (mergedWithPrev) {
     if (prevPrev != NULL) {
       prevPrev->SetNext(prev->GetNext());
+      prev->SetNext(NULL);
+      std::cout << "Inserting merged block: ";
+      InsertBlock(prev);
+      return prevPrev->GetNext();
     } else {
       freeList_[idx] = prev->GetNext();
+      prev->SetNext(NULL);
+      std::cout << "Inserting merged block: ";
+      InsertBlock(prev);
+      return freeList_[idx];
     }
-    prev->SetNext(NULL);
-    std::cout << "Inserting merged block: ";
-    InsertBlock(prev);
   } else if (mergedWithNext) {
       if (prev != NULL) {
         prev->SetNext(curr->GetNext());
+       	curr->SetNext(NULL);
+        std::cout << "Inserting merged block: ";
+	InsertBlock(curr);
+        return curr->GetNext();
       } else {
         freeList_[idx] = curr->GetNext();
+	curr->SetNext(NULL);
+ 	std::cout << "Inserting merged block: ";
+	InsertBlock(curr);
+	return freeList_[idx];
       }
-      curr->SetNext(NULL);
-      std::cout << "Inserting merged block: ";
-      InsertBlock(curr);
   }  
+
+  return block->GetNext();
 
   //if (prev != NULL) {
   //  if ((prev->GetData() + listBlockSize) == curr->GetData()) {
@@ -232,6 +244,15 @@ Block* BuddySystem::Merge(Block* block, int idx) {
   //}
   //if (merged == false) std::cout << "IGNORE LOG: ";
   //InsertBlock(curr);
+}
+
+void BuddySystem::MergeFreeList() {
+  for (int i = 0; i < freeListSize_; i++) {
+    Block* curr = freeList_[i];
+    while (curr != NULL) {
+      curr = Merge(curr, i); 
+    }
+  }
 }
 
 void BuddySystem::PrintFreeList() {

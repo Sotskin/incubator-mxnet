@@ -146,8 +146,8 @@ void BuddySystem::InsertBlock(Block* block) {
 }
 
 Block* BuddySystem::Merge(Block* block, int idx) {
-  std::cout << "Trying to merge desired block" << std::endl;
-  idx = GetListIdx(block->GetSize());
+  //std::cout << "Trying to merge desired block" << std::endl;
+  //idx = GetListIdx(block->GetSize());
   size_t listBlockSize = GetListBlockSize((size_t)idx);
   Block* curr = freeList_[idx];
   Block* prev = NULL;

@@ -109,6 +109,7 @@ cudaError_t BuddySystem::Free(void* ptr) {
   std::cout << "SUCCESS: Free completed: " << ptr << std::endl;
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
+  if (allocated_ <= CLEAN_UP_BOUNDRY) CleanUp();
   PrintFreeList();
   return cudaSuccess;
 }
@@ -231,19 +232,6 @@ Block* BuddySystem::Merge(Block* block, int idx) {
   }  
 
   return block->GetNext();
-
-  //if (prev != NULL) {
-  //  if ((prev->GetData() + listBlockSize) == curr->GetData()) {
-  //    prev->SetSize(prev->GetSize() + curr->GetSize());
-  //    prev->SetNext(curr->GetNext());
-  //    curr->SetNext(NULL);
-  //    InsertBlock(prev);
-  //    std::cout << "Merged with the previous block" << std::endl;
-  //    return;
-  //  }
-  //}
-  //if (merged == false) std::cout << "IGNORE LOG: ";
-  //InsertBlock(curr);
 }
 
 void BuddySystem::MergeFreeList() {
@@ -282,6 +270,62 @@ void BuddySystem::CheckDuplicate() {
         curr = curr->GetNext();
       }
     }
+}
+
+void BuddySystem::CleanUp() {
+  Block* tempList = NULL;
+
+  //insert all nodes in the free list into a temp list
+  for (int i = 0; i < freeListSize_; i++) {
+    Block* curr = freeList_[i];
+
+    while (curr != NULL) {
+      freeList_[i] = curr->GetNext();
+      curr->SetNext(NULL);
+
+      Block* temp = tempList;
+      Block* prev = NULL;
+
+      while (temp != NULL) {
+        if (temp->GetData() > curr->GetData()) break;
+        prev = temp;
+        temp = temp->GetNext();
+      }
+
+      if (prev != NULL) {
+        prev->SetNext(curr);
+        curr->SetNext(temp);
+      } else {
+        curr->SetNext(tempList);
+        tempList = curr; 
+      }
+      curr = freeList_[i];
+    }
+  }
+
+  //merge the nodes in the temp list
+  Block* curr = tempList;
+  while (curr != NULL) {
+    if (curr->GetNext() != NULL) {
+      Block* next = curr->GetNext();
+      if ((curr->GetData() + curr->GetSize()) == next->GetData()) {
+        curr->SetSize(curr->GetSize() + next->GetSize()); 
+        curr->SetNext(next->GetNext());
+        next->SetNext(NULL);
+      } else {
+        curr = next;
+      }
+    } else {
+      curr = curr->GetNext();
+    }
+  }
+
+  //insert the nodes in the temp list back into the free list
+  curr = tempList;
+  while (curr != NULL) {
+    InsertBlock(curr);
+    curr = curr->GetNext();
+  }
 }
 
 MemoryManager* MemoryManager::Get() {
@@ -392,7 +436,7 @@ bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
       return true;
     }
   }
-  
+
   std::cout << "FAILURE: There isn't enough space" << std::endl;
   return false;
 }

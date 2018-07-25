@@ -14,6 +14,7 @@ namespace mxnet {
 
 const int MIN_ALLOC_SIZE = 128;
 const double GPU_UTIL_RATIO = 0.95; //save some memory for each device(subject to change)
+const size_t CLEAN_UP_BOUNDRY = 500000000; 
 
 typedef enum {
   memStatus_Sucess,
@@ -92,6 +93,7 @@ class BuddySystem {
     void MergeFreeList();
     void PrintFreeList();
     void CheckDuplicate();
+    void CleanUp();
  
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);

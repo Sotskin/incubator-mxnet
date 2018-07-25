@@ -88,11 +88,11 @@ void* BuddySystem::Alloc(size_t size) {
     memPool_[blockToBeAllocated->GetData()] = blockToBeAllocated;
     std::cout << "SUCCESS: Buddy System No." << gpuIdx_ << " list index = " << listIdx << " block size = " << size << 
                  " at address = " << (void*)blockToBeAllocated->GetData() << std::endl;
-    PrintFreeList();
+    //PrintFreeList();
     return (void*)(blockToBeAllocated->GetData());
   } else {
     std::cout << "FAILURE: Buddy System No." << gpuIdx_ << " cannot allocate size = " << size << " bytes" << std::endl;
-    PrintFreeList();
+    //PrintFreeList();
     return NULL;
   }    
 }
@@ -117,7 +117,7 @@ cudaError_t BuddySystem::Free(void* ptr) {
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
   PrintMemPool();
-  PrintFreeList();
+  //PrintFreeList();
   return cudaSuccess;
 }
 
@@ -452,6 +452,7 @@ cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
         
 cudaError_t MemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
   //TODO(qingsen): need implementation
+  std::cout<<"Memcpy"<<std::endl;
   CUDA_CALL(cudaSetDevice(deviceIdx));
   return cudaMemcpy(dst, src, count, kind);
 }

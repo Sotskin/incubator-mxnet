@@ -88,11 +88,11 @@ void* BuddySystem::Alloc(size_t size) {
     memPool_[blockToBeAllocated->GetData()] = blockToBeAllocated;
     std::cout << "SUCCESS: Buddy System No." << gpuIdx_ << " list index = " << listIdx << " block size = " << size << 
                  " at address = " << (void*)blockToBeAllocated->GetData() << std::endl;
-    //PrintFreeList();
+    PrintFreeList();
     return (void*)(blockToBeAllocated->GetData());
   } else {
     std::cout << "FAILURE: Buddy System No." << gpuIdx_ << " cannot allocate size = " << size << " bytes" << std::endl;
-    //PrintFreeList();
+    PrintFreeList();
     return NULL;
   }    
 }
@@ -112,12 +112,13 @@ cudaError_t BuddySystem::Free(void* ptr) {
   std::cout << "Block suppposed to be inserted at index = " << idx << std::endl;
   std::cout << "Initially: ";
   InsertBlock(blockToBeInserted);
-  //MergeFreeList();
+  MergeFreeList();
   std::cout << "SUCCESS: Free completed: " << ptr << std::endl;
   std::cout << "Total free memory after Free: size = " << free_ << " bytes" << std::endl;
   std::cout << "Total allocated memory after Free: size = " << allocated_ << " bytes" << std::endl;
   PrintMemPool();
-  //PrintFreeList();
+  if (allocated_ < CLEAN_UP_BOUNDRY) CleanUp();
+  PrintFreeList();
   return cudaSuccess;
 }
 
@@ -280,6 +281,7 @@ void BuddySystem::CheckDuplicate() {
 }
 
 void BuddySystem::CleanUp() {
+  std::cout << "Starting clean up" << std::endl;
   Block* tempList = NULL;
 
   //insert all nodes in the free list into a temp list

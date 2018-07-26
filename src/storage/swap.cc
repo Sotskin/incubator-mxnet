@@ -28,7 +28,6 @@ Swap::Swap() {
     free_memory_.push_back(0);
   }
   swap_locked_ = false;
-  swap_algorithm_ = dmlc::GetEnv("SWAP_ALGORITHM", std::string("LRU"));
 }
 
 Swap::~Swap() {
@@ -47,52 +46,9 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     return;
   }
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
-    handle_id_t victim;
-    if (swap_algorithm_ == "SizeHistory" && 
-        memory_history_->GetIterationIdx() > 2) {
-      auto candidates = divided_handles_[device_id].lower_bound(required_memory);
-      auto original_candidates = candidates;
-      if (candidates == divided_handles_[device_id].end()) {
-        candidates--;
-      }
-      bool reverse_flag = false;
-      size_t no_swap_step = 80;
-      //std::cout<<"Enter loop"<<std::endl;
-      while (true) {
-        //std::cout<<no_swap_step<<" "<<candidates->first<<" "<<
-        // candidates->second.size()<<std::endl;
-        if (candidates->second.size() != 0) {
-          victim = memory_history_->DecideVictim(candidates->second, device_id, &no_swap_step);
-          if(victim != 0) {
-            //std::cout<<"Exit loop"<<std::endl;
-            break;
-          }
-        }
-        if (!reverse_flag) {
-          candidates ++;
-          if (candidates == divided_handles_[device_id].end()) {
-            candidates = original_candidates;
-            reverse_flag = true;
-          }
-        }
-        if (reverse_flag) {
-          if (candidates == divided_handles_[device_id].begin()) {
-            candidates = original_candidates;
-            reverse_flag = false;
-            if( no_swap_step == 0) {
-              std::cout << "Cannot find victim (algorithm error)" << std::endl;
-              CHECK(0);
-            }
-            no_swap_step /= 2;
-          } else {
-            candidates --;
-          }
-        }
-      }
-    } else {
-      victim = memory_history_->DecideVictim(swappable_handles_[device_id], device_id,
-          nullptr);
-    }
+    SwapParams param = {0, required_memory, &divided_handles_[device_id]};
+    handle_id_t victim = memory_history_->DecideVictim(swappable_handles_[device_id], device_id,
+          &param);
     if(swap_info_.find(victim) == swap_info_.end()) {
       std::cout<<"Victim does not exist (deleted?)"<<std::endl;
       CHECK(0);
@@ -111,12 +67,13 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     target->swapped_in = false;
     swappable_handles_[device_id].erase(victim);
     divided_handles_[device_id][target->size].erase(victim);
-    pthread_rwlock_unlock(&swap_lock_);
-    cudaError_t e = memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr, target->size, cudaMemcpyDeviceToHost);
+    //pthread_rwlock_unlock(&swap_lock_);
+    cudaError_t e = memory_manager_->Memcpy(device_id, target->cpu_address, 
+        target->dptr, target->size, cudaMemcpyDeviceToHost);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "Memcpy failed: " << cudaGetErrorString(e);
     }
-    pthread_rwlock_wrlock(&swap_lock_);
+    //pthread_rwlock_wrlock(&swap_lock_);
     e = memory_manager_->Free(target->dptr, device_id);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "Free failed: " << cudaGetErrorString(e);
@@ -139,13 +96,13 @@ void Swap::SwapIn(SwapInfo *info) {
   swappable_handles_[info->device_id].insert(info->handle_id);
   divided_handles_[info->device_id][info->size].insert(info->handle_id);
   swap_info_[info->handle_id]->dptr = info->dptr;
-  pthread_rwlock_unlock(&swap_lock_);
+  //pthread_rwlock_unlock(&swap_lock_);
   e = memory_manager_->Memcpy(info->device_id, info->dptr, info->cpu_address, info->size,
       cudaMemcpyHostToDevice);
   if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
     LOG(FATAL) << "Memcpy failed: " << cudaGetErrorString(e);
   }
-  pthread_rwlock_wrlock(&swap_lock_);
+  //pthread_rwlock_wrlock(&swap_lock_);
   delete info->cpu_address;
   info->cpu_address = nullptr;
 }

@@ -47,7 +47,6 @@ private:
   std::map<size_t, std::unordered_set<handle_id_t> > divided_handles_[NUMBER_OF_GPU];
   std::stack<handle_id_t> locked_handles_[NUMBER_OF_GPU];
   std::vector<size_t> free_memory_;
-  std::string swap_algorithm_;
   std::shared_ptr<MemHistory> memory_history_;
   std::shared_ptr<MemoryManager> memory_manager_;
   pthread_rwlock_t swap_lock_;

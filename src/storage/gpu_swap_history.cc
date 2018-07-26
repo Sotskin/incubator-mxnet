@@ -27,13 +27,14 @@ MemHistory::MemHistory() {
   std::cout << "Swap Algorithm: " << swap_algorithm_ << std::endl;
   if(swap_algorithm_ == "LRU"){
     DoDecide = &MemHistory::LRU;
-  } else if(swap_algorithm_ == "NaiveHistory" 
-      || swap_algorithm_ == "SizeHistory" ) {
-    DoDecide = &MemHistory::NaiveHistoryBased;
+  } else if(swap_algorithm_ == "NaiveHistory") {
+    DoDecide = &MemHistory::NaiveHistory;
+  } else if(swap_algorithm_ == "SizeHistory") {
+    DoDecide = &MemHistory::SizeHistory;
   } else {
     std::cout << "Unknown Algorithm Name: " << swap_algorithm_ << std::endl;
     CHECK(0);
-  }
+  } 
 }
 
 MemHistory::~MemHistory() {}
@@ -112,8 +113,9 @@ handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device,
 
 // NaiveHistory: assume iterations remain the same; choose the handle
 // whose next reference is furthest in the future as victim.
-handle_id_t MemHistory::NaiveHistoryBased(
+handle_id_t MemHistory::NaiveHistory(
   std::unordered_set<handle_id_t> handles, int device, void* arg) {
+  SwapParams* params = (SwapParams*)arg;
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
@@ -130,7 +132,7 @@ handle_id_t MemHistory::NaiveHistoryBased(
       */
       return id;
     } 
-    else if( arg != nullptr && it->record_step - record_idx[device] < *(size_t*)arg) {
+    else if(it->record_step - record_idx[device] < params->no_swap_steps) {
       continue;
     }
     if(it->record_step > latest_step) {
@@ -140,6 +142,48 @@ handle_id_t MemHistory::NaiveHistoryBased(
   }
   return latest_id;
 
+}
+
+handle_id_t MemHistory::SizeHistory(
+    std::unordered_set<handle_id_t> handles, int device, void* arg) {
+  auto divided_handles  = ((SwapParams*)arg)->divided_handles;
+  auto candidates = divided_handles->lower_bound(((SwapParams*)arg)->required_memory);
+  auto original_candidates = candidates;
+  bool reverse_flag = false;
+  size_t no_swap_step = 80;
+  if (candidates == divided_handles->end()) {
+    candidates--;
+  }
+  while (true) {
+    if (candidates->second.size() != 0) {
+      SwapParams new_params = {no_swap_step, 0, nullptr};
+      handle_id_t victim = NaiveHistory(candidates->second, device, &new_params);
+      if (victim != 0) {
+        return victim;
+      }
+    } 
+    if (!reverse_flag) {
+      candidates ++;
+      if (candidates == divided_handles->end()) {
+        candidates = original_candidates;
+        reverse_flag = true;
+      }
+    }
+    if (reverse_flag) {
+      if (candidates == divided_handles->begin()) {
+        candidates = original_candidates;
+        reverse_flag = false;
+        if (no_swap_step == 0) {
+          std::cout << "Cannot find victim (algorithm error)" << std::endl;
+          CHECK(0);
+        }
+        no_swap_step /= 2;
+      } else {
+        candidates --;
+      }
+    }
+  }
+  return 0;
 }
 
 handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device, 
@@ -195,11 +239,9 @@ void MemHistory::StartIteration() {
   if(iteration_idx_ == 2) {
     is_recording_ = true;
   } else if(iteration_idx_ > 2) {
-    /* 
     Prefetch::Get()->StartPrefetching();
-    while(!Prefetch::Get()->IsPrefetching())
-      usleep(5);
-    */ 
+    //while(!Prefetch::Get()->IsPrefetching())
+    //  usleep(5);
   }
   begin_time_ = high_resolution_clock::now();
   // Log variables
@@ -214,11 +256,11 @@ void MemHistory::StopIteration() {
   pre_recording_ = false;
   is_recording_ = false;
   iteration_started_ = false;
-  /* 
+  
   if(Prefetch::Get()->IsPrefetching()) {
     Prefetch::Get()->StopPrefetching();
   }
-  */
+  
   ++iteration_idx_;
   std::cout << "num_get_addr " << num_get_addr << std::endl
     << "num_swap_in: " << num_swap_in << " " 

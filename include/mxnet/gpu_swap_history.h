@@ -24,6 +24,12 @@ using timestep_t = unsigned long long;
 
 const int NUMBER_OF_GPU = 1;
 
+struct SwapParams {
+  size_t no_swap_steps;
+  size_t required_memory;
+  std::map<size_t, std::unordered_set<handle_id_t> >* divided_handles;
+};
+
 class MemHistory {
 public:
 
@@ -81,8 +87,11 @@ private:
   handle_id_t (MemHistory::*DoDecide)(std::unordered_set<handle_id_t>, int, void*);
   // Swap algorithm declaration
   handle_id_t LRU(std::unordered_set<handle_id_t> handles, int device, void* arg);
-  handle_id_t NaiveHistoryBased(std::unordered_set<handle_id_t> handles,
-    int device, void* arg);
+  handle_id_t NaiveHistory(std::unordered_set<handle_id_t> handles, int device, 
+      void* arg);
+  handle_id_t SizeHistory(std::unordered_set<handle_id_t> handles, int device, 
+      void* arg);
+
 
 };  // class MemHistory
 

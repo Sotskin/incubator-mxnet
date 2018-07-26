@@ -115,7 +115,7 @@ void GPUPooledStorageManager::Alloc(Storage::Handle* handle) {
       do_reuse_ = false;
       ReleaseAll();
     }
-    swap_->SwapOut(size, device_id_);
+    swap_->SwapOutLocked(size, device_id_);
     void* ret = nullptr;
     cudaError_t e = memory_manager_->Malloc(ret, size, device_id_);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {

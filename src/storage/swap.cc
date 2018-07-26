@@ -32,10 +32,16 @@ Swap::Swap() {
 }
 
 Swap::~Swap() {
-  PrintHandles();
   std::cout << "Destroy Swap" <<std::endl;
 }
 
+void Swap::SwapOutLocked(unsigned required_memory, int device_id) {
+  pthread_rwlock_wrlock(&swap_lock_);
+  SwapOut(required_memory, device_id);
+  pthread_rwlock_unlock(&swap_lock_);
+}
+
+// Caller holds swap_lock_
 void Swap::SwapOut(unsigned required_memory, int device_id) {
   if (memory_manager_->TryAllocate(device_id, required_memory)) {
     return;
@@ -105,18 +111,20 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     target->swapped_in = false;
     swappable_handles_[device_id].erase(victim);
     divided_handles_[device_id][target->size].erase(victim);
+    pthread_rwlock_unlock(&swap_lock_);
     cudaError_t e = memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr, target->size, cudaMemcpyDeviceToHost);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "Memcpy failed: " << cudaGetErrorString(e);
     }
+    pthread_rwlock_wrlock(&swap_lock_);
     e = memory_manager_->Free(target->dptr, device_id);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "Free failed: " << cudaGetErrorString(e);
     }
-
   }
 }
 
+// Caller holds swap_lock_
 void Swap::SwapIn(SwapInfo *info) {
   CHECK(!info->swapped_in);
   CHECK(info->cpu_address != nullptr);
@@ -127,17 +135,19 @@ void Swap::SwapIn(SwapInfo *info) {
   if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
     LOG(FATAL) << "cudaMalloc failed: " << cudaGetErrorString(e);
   }
+  info->swapped_in = true;
+  swappable_handles_[info->device_id].insert(info->handle_id);
+  divided_handles_[info->device_id][info->size].insert(info->handle_id);
+  swap_info_[info->handle_id]->dptr = info->dptr;
+  pthread_rwlock_unlock(&swap_lock_);
   e = memory_manager_->Memcpy(info->device_id, info->dptr, info->cpu_address, info->size,
       cudaMemcpyHostToDevice);
   if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
     LOG(FATAL) << "Memcpy failed: " << cudaGetErrorString(e);
   }
-  info->swapped_in = true;
+  pthread_rwlock_wrlock(&swap_lock_);
   delete info->cpu_address;
   info->cpu_address = nullptr;
-  swappable_handles_[info->device_id].insert(info->handle_id);
-  divided_handles_[info->device_id][info->size].insert(info->handle_id);
-  swap_info_[info->handle_id]->dptr = info->dptr;
 }
 
 void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id) {

@@ -81,10 +81,12 @@ void Prefetch::Prefetching(int device) {
 void Prefetch::HistoryBasedPrefetch(int device) {
   //pthread_rwlock_rdlock(&swap_lock_);
   //bool has_begun = false;
-  if(lookahead_pos_[device] < history_->record_idx[device])
+  if(lookahead_pos_[device] < (int)history_->record_idx[device]) {
     lookahead_pos_[device] = history_->record_idx[device];
+  }
   while(lookahead_pos_[device]+1 < history_->ordered_history[device].size() &&
-      lookahead_pos_[device]-(int)history_->record_idx[device]<=steps_ahead_) {
+      lookahead_pos_[device] - (int)history_->record_idx[device] < steps_ahead_ &&
+      lookahead_pos_[device] - (int)history_->record_idx[device] >= 0 ) {
     MemHistory::MemRecord r =
         history_->ordered_history[device][++lookahead_pos_[device]];
     if(r.operation_id == MemHistory::GET_ADDR) {

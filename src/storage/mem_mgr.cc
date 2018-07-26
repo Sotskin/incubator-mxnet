@@ -251,6 +251,8 @@ void BuddySystem::MergeFreeList() {
   }
 }
 
+	
+//currently disabled for better log
 void BuddySystem::PrintFreeList() {
   std::cout << "====================================================" << std::endl;
   std::cout << "Free List Info" << std::endl;

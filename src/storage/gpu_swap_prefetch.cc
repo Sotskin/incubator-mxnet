@@ -95,6 +95,8 @@ void Prefetch::Prefetching(int device) {
 
 
 void Prefetch::PrefetchWhileComputing(int device) {
+  //TODO(karl): Use condition variable to replace the inefficient busy waiting
+
   /*
   std::unique_lock<std::mutex> lk(prefetch_lock_[device]);
   while(!computing_) {

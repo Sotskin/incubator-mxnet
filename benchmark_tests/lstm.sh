@@ -17,8 +17,8 @@ echo "HIDDEN_SIZE = ${HIDDEN_SIZE}"
 
 export SWAP_ALGORITHM=NaiveHistory
 export MXNET_ENGINE_TYPE=NaiveEngine
-export PYTHONPATH=/home/karl/incubator-mxnet/python
+export PYTHONPATH=/home/sotskin/incubator-mxnet/python
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 
 python tofu_lstm_benchmark.py --cold_skip=${COLD_SKIP} --input_size=${INPUT_SIZE} --num_classes=${CLASSES} --use_momentum=${USE_MOMENTUM} --num_gpus=${NUM_GPU} --hidden_size=${HIDDEN_SIZE} --num_layers=${LAYERS} --batch_size=${BATCH_SIZE} --seq_len=${SEQ_LEN} --num_loop=${NUM_LOOPS} > log_lstm_${LAYERS}_${BATCH_SIZE}_${SEQ_LEN}_${HIDDEN_SIZE}

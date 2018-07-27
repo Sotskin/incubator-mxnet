@@ -37,8 +37,8 @@ def test():
     
     net, image_shape, num_classes = net_module.get_symbol(args)
 
-    print(net.list_arguments())
-    print(net.list_outputs())
+    #print(net.list_arguments())
+    #print(net.list_outputs())
 
     in_shapes = {}
     in_shapes['data'] = (args.batch_size, ) + image_shape
@@ -49,12 +49,12 @@ def test():
 
     arg_arrays = [mx.nd.zeros(shape, default_ctx, dtype=dtype)
                   for shape, dtype in zip(arg_shapes, arg_types)]
-    print('Num arguments: ', len(arg_arrays))
+    #print('Num arguments: ', len(arg_arrays))
     args_grad = {name : mx.nd.zeros(shape, default_ctx, dtype=dtype)
                  for name, shape, dtype in zip(net.list_arguments(), arg_shapes, arg_types)
                  if name != 'data' and not name.endswith('label')}
 
-    print('Argument grads: ', args_grad.keys())
+    #print('Argument grads: ', args_grad.keys())
     print('Bind Start')
     executor = net.bind(ctx=default_ctx,
                         args=arg_arrays,

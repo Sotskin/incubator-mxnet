@@ -6,9 +6,11 @@
 #include <memory>
 #include <mutex>
 #include <stdio.h>
+#include <string>
 
 namespace mxnet {
 
+const int MINALLOCSIZE_ = 128;
 const int FREELISTSIZE_ = 21;
 
 typedef enum {
@@ -18,13 +20,14 @@ typedef enum {
   memStatus_CUDAError,
 } memStatus_t;
 
-inline char* memGetStatusString(memStatus_t status) {
+inline std::string memGetStatusString(memStatus_t status) {
   switch (status) {
     case memStatus_Sucess: return "Sucess";
     case memStatus_InvalidValue: return "Invalid value";
     case memStatus_OutOfMemory: return "Out of memory";
     case memStatus_CUDAError: return "CUDA error";
   }
+  return "Unknown error";
 }
 
 //min allocation size = 2^7 = 128 bytes
@@ -67,29 +70,29 @@ class Block {
     void setNext(Block* b) { nextBlock_ = b; }
     void setAllocated() { isFree_ = false; }
     void setFree() { isFree_ = true; }
-};
+}; // Class Block
 
 class MemoryManager {
   Block* allocatedList_;
   Block* freeList_[FREELISTSIZE_];
+  Block* usedList_;
   std::mutex mutex_;
   public:
     static MemoryManager* Get();
     static std::shared_ptr<MemoryManager> _GetSharedRef();
-    ~MemoryManager();
     cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
     cudaError_t Free(void* devptr, int deviceIdx);
     cudaError_t Memcpy(int deviceId, void* dst, 
                        const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);   
     bool TryAllocate(int deviceId, size_t size);
-    Block* findFirstFit(int idx, size_t size);
-    Block* allocateBlock(size_t size);
-    void splitAndPlace(Block* b, Block* prev, int idx, size_t size);
 
   private:
     MemoryManager();
-};
+    Block* FindFirstFit(int idx, Block* prev, size_t size);
+    Block* AllocateBlock(size_t size);
+    void SplitAndPlace(Block* b, Block* prev, int idx, size_t size);
+};  // Class MemoryManager
 
 } //namespace mxnet
 

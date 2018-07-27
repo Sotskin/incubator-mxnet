@@ -63,12 +63,13 @@ def test():
                         group2ctx=group2ctx)
     feed_args(net, arg_arrays)
     import time
+    print('Sleep')
     time.sleep(10)
     mx.base.stop_iteration()
     # TODO(sotksin): Find a way to know the end of a binding
     print('Bind End')
     all_time = []
-    t0 = time.time()
+    #t0 = time.time()
     for i in range(num_loops):
         print('=> loop %d' % i);
         mx.base.start_iteration()
@@ -84,12 +85,17 @@ def test():
             outputs[-1].wait_to_read()
         mx.base.stop_iteration()
         ed_l = time.time()
+
         print('=> loop duration %f\n' % float(ed_l - st_l))
-        all_time.append(float(ed_l - st_l))
+        if i > 1:
+            all_time.append(float(ed_l - st_l))
+            if i == 2:
+                t0 = time.time()
+
     t1 = time.time()
 
     duration = t1 - t0
-    print('duration %f, average %f, std %f' % \
+    print('duration %f, average %f, std %f (excluding first 2 loops)' % \
         (duration, np.asarray(all_time).mean(), np.asarray(all_time).std()))
 
 

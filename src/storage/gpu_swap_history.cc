@@ -242,7 +242,7 @@ void MemHistory::StartIteration() {
   } else if(iteration_idx_ > 2) {
     Prefetch::Get()->StartPrefetching();
     //while(!Prefetch::Get()->IsPrefetching())
-    //  usleep(5);
+    //  usleep(1);
   }
   begin_time_ = high_resolution_clock::now();
   // Log variables
@@ -257,11 +257,9 @@ void MemHistory::StopIteration() {
   pre_recording_ = false;
   is_recording_ = false;
   iteration_started_ = false;
-  
   if(Prefetch::Get()->IsPrefetching()) {
     Prefetch::Get()->StopPrefetching();
   }
-  
   ++iteration_idx_;
   std::cout << "num_get_addr " << num_get_addr << std::endl
     << "num_swap_in: " << num_swap_in << " " 

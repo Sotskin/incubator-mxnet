@@ -84,7 +84,7 @@ def test():
             outputs[-1].wait_to_read()
         mx.base.stop_iteration()
         ed_l = time.time()
-        print('=> loop duration %f' % float(ed_l - st_l))
+        print('=> loop duration %f\n' % float(ed_l - st_l))
         all_time.append(float(ed_l - st_l))
     t1 = time.time()
 

@@ -31,6 +31,7 @@
 #include "../common/exec_utils.h"
 #include "./exec_pass.h"
 #include "../operator/nn/mkldnn/mkldnn_base-inl.h"
+#include "../storage/gpu_swap_prefetch.h"
 
 namespace mxnet {
 
@@ -122,6 +123,7 @@ class StatefulComputeExecutor : public StorageFallbackOpExecutor {
     InvalidateOutputs(out_array, req);
 #endif
     PreFCompute(is_gpu);
+    Prefetch::Get()->SignalStartComputing();
     fcompute_(state_, op_ctx, in_data_, req, out_data_);
     PostFCompute(is_gpu);
   }
@@ -199,6 +201,7 @@ class FComputeExecutor : public StorageFallbackOpExecutor {
     InvalidateOutputs(out_array, req);
 #endif
     PreFCompute(is_gpu);
+    Prefetch::Get()->SignalStartComputing();
     fcompute_(attrs_, op_ctx, in_data_, req, out_data_);
     PostFCompute(is_gpu);
   }

@@ -34,6 +34,7 @@
 #include "../profiler/profiler.h"
 #include "../common/utils.h"
 #include "../common/exec_utils.h"
+#include "../storage/gpu_swap_prefetch.h"
 
 namespace mxnet {
 namespace exec {
@@ -1436,7 +1437,9 @@ void GraphExecutor::InitCachedOps() {
         if (is_gpu) {
         #if MXNET_USE_CUDA
           // Wait GPU kernel to finish.
+          //Prefetch::Get()->SignalStartComputing();
           ctx.get_stream<gpu>()->Wait();
+          Prefetch::Get()->SignalStopComputing();
           Swap::Get()->UnlockSwap();
         #else
           LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
@@ -1685,7 +1688,9 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
     if (is_gpu) {
 #if MXNET_USE_CUDA
       // Wait GPU kernel to finish.
+      //Prefetch::Get()->SignalStartComputing();
       ctx.get_stream<gpu>()->Wait();
+      Prefetch::Get()->SignalStopComputing();
       Swap::Get()->UnlockSwap();
 #else
       LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;

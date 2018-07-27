@@ -150,6 +150,7 @@ handle_id_t MemHistory::SizeHistory(
   auto candidates = divided_handles->lower_bound(((SwapParams*)arg)->required_memory);
   auto original_candidates = candidates;
   bool reverse_flag = false;
+  //FIXME: Empirical result may need a better way to know how to choose this.
   size_t no_swap_step = 80;
   if (candidates == divided_handles->end()) {
     candidates--;

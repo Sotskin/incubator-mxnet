@@ -118,7 +118,7 @@ class StorageFallbackOpExecutor : public OpExecutor {
 class StatefulComputeExecutor : public StorageFallbackOpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"StatefulCompute Run"<<std::endl;
+    //std::cout<<"StatefulCompute Run"<<std::endl;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
     InvalidateOutputs(out_array, req);
@@ -159,7 +159,7 @@ class StatefulComputeExecutor : public StorageFallbackOpExecutor {
 class StatefulComputeExExecutor : public OpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"StatefulComputeEX Run"<<std::endl;
+    //std::cout<<"StatefulComputeEX Run"<<std::endl;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
     InvalidateOutputs(out_array, req);
@@ -197,7 +197,7 @@ class StatefulComputeExExecutor : public OpExecutor {
 class FComputeExecutor : public StorageFallbackOpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"FComputeExecutor Run"<<std::endl;
+    //std::cout<<"FComputeExecutor Run"<<std::endl;
     using namespace common;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
@@ -229,7 +229,7 @@ class FComputeExecutor : public StorageFallbackOpExecutor {
 class FComputeExExecutor : public OpExecutor {
  public:
   void Run(RunContext rctx, bool is_gpu) override {
-    std::cout<<"FComputeExecutorEX Run"<<std::endl;
+    //std::cout<<"FComputeExecutorEX Run"<<std::endl;
     op_ctx.run_ctx = rctx;
 #if MXNET_USE_MKLDNN == 1
     InvalidateOutputs(out_array, req);

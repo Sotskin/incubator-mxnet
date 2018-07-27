@@ -54,7 +54,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
       CHECK(0);
     }
     SwapInfo *target = swap_info_[victim];
-    std::cout<<"SwapOut "<<victim<<" "<<target->size<<" "<<target->swap_count<<std::endl;
+    //std::cout<<"SwapOut "<<victim<<" "<<target->size<<" "<<target->swap_count<<std::endl;
     target->swap_count++;
     memory_history_->num_swap_out++;
     memory_history_->swap_out_total += target->size;
@@ -86,7 +86,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
 void Swap::SwapIn(SwapInfo *info) {
   CHECK(!info->swapped_in);
   CHECK(info->cpu_address != nullptr);
-  std::cout<<"SwapIn "<<info->handle_id<<" "<<info->size<<" "<<info->swap_count<<std::endl;
+  //std::cout<<"SwapIn "<<info->handle_id<<" "<<info->size<<" "<<info->swap_count<<std::endl;
   SwapOut(info->size, info->device_id);
   memory_history_->num_swap_in++;
   memory_history_->swap_in_total += info->size;
@@ -117,7 +117,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
     return;
   }
   pthread_rwlock_wrlock(&swap_lock_);
-  std::cout<<"SetAddr "<<handle_id<<std::endl;
+  //std::cout<<"SetAddr "<<handle_id<<std::endl;
   auto iter = swap_info_.find(handle_id);
   if (iter == swap_info_.end()){
     SwapInfo* info = new SwapInfo{handle_id, true, device_id, 
@@ -137,7 +137,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
 
 void Swap::FreeAddr(handle_id_t handle_id) {
   pthread_rwlock_wrlock(&swap_lock_);
-  std::cout<<"FreeAddr "<<handle_id<<std::endl;
+  //std::cout<<"FreeAddr "<<handle_id<<std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
@@ -166,7 +166,7 @@ void Swap::FreeAddr(handle_id_t handle_id) {
 
 void Swap::DelAddr(handle_id_t handle_id) {
   pthread_rwlock_wrlock(&swap_lock_);
-  std::cout<<"DelAddr "<<handle_id<<std::endl;
+  //std::cout<<"DelAddr "<<handle_id<<std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
@@ -190,7 +190,7 @@ void Swap::DelAddr(handle_id_t handle_id) {
 // TODO(sotskin) compatibility for MKLMEM
 void* Swap::GetAddr(handle_id_t handle_id, bool prefetch) {
   pthread_rwlock_wrlock(&swap_lock_);
-  std::cout<<"GetAddr "<<handle_id<<std::endl;
+  //std::cout<<"GetAddr "<<handle_id<<std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1 && !prefetch) {
     memory_history_->num_get_addr++;

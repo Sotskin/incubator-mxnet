@@ -124,7 +124,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
       dptr, nullptr, size, 0};
     swap_info_[handle_id] = info;
     // FIXME(Sotskin): Temporaty Fix
-    if (device_id != -1 && size >= 20240){
+    if (device_id != -1 && (size > 120000 || size < 112000) /*&& handle_id != 4341*/){
       swappable_handles_[device_id].insert(handle_id);
       divided_handles_[device_id][size].insert(handle_id);
     }
@@ -247,12 +247,10 @@ void Swap::PrintHandles(){
       <<it.second->swap_count<<" "<<it.second->device_id
       <<std::endl;
   }
-  /*
   std::cout << "Print Handles II" << std::endl;
-  for(auto it : divided_handles_) {
+  for(auto it : _divided_handles_) {
     std::cout<<it.first<<": "<<it.second.size()<<std::endl;
   }
-  */
 }
 
 } // namespace mxnet

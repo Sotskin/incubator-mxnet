@@ -125,6 +125,7 @@ class StatefulComputeExecutor : public StorageFallbackOpExecutor {
 #endif
     PreFCompute(is_gpu);
     Prefetch::Get()->SignalStartComputing();
+    std::cout<<"StatefulCompute Compute"<<std::endl;
     fcompute_(state_, op_ctx, in_data_, req, out_data_);
     PostFCompute(is_gpu);
   }
@@ -205,6 +206,8 @@ class FComputeExecutor : public StorageFallbackOpExecutor {
 #endif
     PreFCompute(is_gpu);
     Prefetch::Get()->SignalStartComputing();
+    std::cout<<"FComputeExecutor Compute"<<std::endl;
+    using namespace common;
     fcompute_(attrs_, op_ctx, in_data_, req, out_data_);
     PostFCompute(is_gpu);
   }

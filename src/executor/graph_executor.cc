@@ -1425,12 +1425,14 @@ void GraphExecutor::InitCachedOps() {
         on_complete();
       }, Context::CPU(), {}, all_vars, FnProperty::kNormal, 0,
       "SetupExec");
-    auto exec_fun = [exec, is_async, is_gpu] (
+    auto name = inode.source->attrs.name;
+    auto exec_fun = [exec, is_async, is_gpu, name] (
         RunContext ctx, Engine::CallbackOnComplete on_complete) {
       if (is_async) {
         exec->op_ctx.async_on_complete = on_complete;
       }
       Swap::Get()->LockSwap();
+      std::cout << "Before " << name << std::endl;
       exec->Run(ctx, is_gpu);
       // call on complete only if it is async op
       if (!is_async) {
@@ -1439,6 +1441,7 @@ void GraphExecutor::InitCachedOps() {
           // Wait GPU kernel to finish.
           //Prefetch::Get()->SignalStartComputing();
           ctx.get_stream<gpu>()->Wait();
+          std::cout << "After " << name << std::endl;
           Prefetch::Get()->SignalStopComputing();
           Swap::Get()->UnlockSwap();
         #else

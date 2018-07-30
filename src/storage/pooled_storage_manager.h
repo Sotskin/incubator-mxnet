@@ -73,12 +73,7 @@ class GPUPooledStorageManager final : public StorageManager {
 
  private:
   void DirectFreeNoLock(Storage::Handle handle) {
-    cudaError_t err = memory_manager_->Free(handle.GetDptr(), device_id_);
     size_t size = handle.size + NDEV;
-    // ignore unloading error, as memory has already been recycled
-    if (err != cudaSuccess && err != cudaErrorCudartUnloading) {
-      LOG(FATAL) << "CUDA: " << cudaGetErrorString(err);
-    }
     handle.Free();
     used_memory_ -= size;
   }
@@ -139,22 +134,21 @@ void GPUPooledStorageManager::Free(Storage::Handle handle) {
     auto&& reuse_pool = memory_pool_[size];
     reuse_pool.push_back(handle.GetDptr());
     // The address will be set to a different handle later
-    handle.Free();
+    handle.FreeDptr();
   } else {
     DirectFreeNoLock(handle);
   }
 }
 
-// FIXME(sotskin):DirectFreeNoLock does not know the device id of memory to be
-// freed
 void GPUPooledStorageManager::ReleaseAll() {
   for (auto&& i : memory_pool_) {
     for (auto&& j : i.second) {
-      Storage::Handle handle;
-      // (Sotskin)No need to swap memories that are about to be released
-      handle.SetDptr(j, -1); 
-      handle.size = i.first - NDEV;
-      DirectFreeNoLock(handle);
+      cudaError_t e = memory_manager_->Free(j, device_id_);
+      if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
+        LOG(FATAL) << "cudaFree failed: " << cudaGetErrorString(e);
+      }
+      size_t size = i.first - NDEV;
+      used_memory_ -= size;
     }
   }
   memory_pool_.clear();

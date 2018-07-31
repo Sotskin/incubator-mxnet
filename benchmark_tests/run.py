@@ -1,3 +1,10 @@
+'''
+Usage:
+Here, we use resnet as an example.
+1. # python3 resnet --dump
+    * Modify config_resnet to fit your environment and requirement.
+2. python3 @config_resnet
+'''
 import argparse
 import os
 import pprint

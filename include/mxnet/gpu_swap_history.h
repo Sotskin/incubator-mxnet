@@ -53,7 +53,7 @@ public:
   std::vector<std::list<handle_id_t> > lru_list;
   std::vector<std::unordered_map<handle_id_t, std::list<handle_id_t>::iterator> >
       lru_map;
-  std::vector<size_t> record_idx; 
+  std::vector<size_t> record_idx;
 
   ~MemHistory();
   static MemHistory* Get();
@@ -87,9 +87,9 @@ private:
   handle_id_t (MemHistory::*DoDecide)(std::unordered_set<handle_id_t>, int, void*);
   // Swap algorithm declaration
   handle_id_t LRU(std::unordered_set<handle_id_t> handles, int device, void* arg);
-  handle_id_t NaiveHistory(std::unordered_set<handle_id_t> handles, int device, 
+  handle_id_t NaiveHistory(std::unordered_set<handle_id_t> handles, int device,
       void* arg);
-  handle_id_t SizeHistory(std::unordered_set<handle_id_t> handles, int device, 
+  handle_id_t SizeHistory(std::unordered_set<handle_id_t> handles, int device,
       void* arg);
 
 

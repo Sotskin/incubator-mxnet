@@ -16,8 +16,9 @@ Prefetch::Prefetch() {
   start_prefetching_ = false;
   stop_prefetching_ = false;
   computing_ = false;
-  prefetch_algorithm_ = dmlc::GetEnv("PREFETCH_ALGORITHM", std::string("NaiveHistory"));
-  steps_ahead_ = dmlc::GetEnv("PREFETCH_STEP_AHEAD", 100);
+  prefetch_algorithm_ = dmlc::GetEnv("MXNET_PREFETCH_ALGORITHM",
+                                      std::string("NaiveHistory"));
+  steps_ahead_ = dmlc::GetEnv("MXNET_PREFETCH_STEP_AHEAD", 100);
   history_ = MemHistory::_GetSharedRef();
   lookahead_pos_ = std::vector<int>(NUMBER_OF_GPU);
   prefetcher_ = std::vector<std::thread>(NUMBER_OF_GPU);
@@ -32,7 +33,7 @@ Prefetch::Prefetch() {
     DoPrefetch = &Prefetch::PrefetchWhileComputing;
   } else if(prefetch_algorithm_ == "NoPrefetch") {
     DoPrefetch = nullptr;
-  } else { 
+  } else {
     std::cout << "Unknown Prefetch Algorithm: " << prefetch_algorithm_
       << std::endl;
     CHECK(0);

@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <dmlc/parameter.h>
+#include <dmlc/logging.h>
 #include <math.h>
 #include <mxnet/buddy.h>
 #include <mxnet/mem_mgr.h>
@@ -20,17 +22,81 @@ static inline void CHECK_CUDA_ERROR() {
   CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);
 }
 
-MemoryManager* MemoryManager::Get() {
-  static MemoryManager* mm = _GetSharedRef().get();
-  return mm;
+CudaMemoryManager::CudaMemoryManager() {
+  std::cout << "Initialize CUDA Memory Allocator" << std::endl;
 }
 
-std::shared_ptr<MemoryManager> MemoryManager::_GetSharedRef() {
-  static std::shared_ptr<MemoryManager> inst(new MemoryManager());
-  return inst;
+CudaMemoryManager::~CudaMemoryManager() {
+  std::cout << "Destroy Cuda Memory Allocator" << std::endl;
 }
 
-MemoryManager::MemoryManager() {
+cudaError_t CudaMemoryManager::Malloc(void*& devptr, size_t size,
+                                      int device_id) {
+  cudaSetDevice(device_id);
+  cudaError_t e = cudaMalloc(&devptr, size);
+  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << "Malloc failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  return e;
+}
+
+cudaError_t CudaMemoryManager::Free(void* devptr, int device_id) {
+  cudaSetDevice(device_id);
+  cudaError_t e = cudaFree(devptr);
+  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << "Free failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  return e;
+}
+
+cudaError_t CudaMemoryManager::Memcpy(int device_id, void* dst, const void* src,
+                                      size_t count, enum cudaMemcpyKind kind) {
+  cudaSetDevice(device_id);
+  cudaSetDevice(device_id);
+  cudaError_t e = cudaMemcpy(dst, src, count, kind);
+  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << "Memcpy failed: " << cudaGetErrorString(e) << std::endl;
+  }
+  return e;
+}
+
+cudaError_t CudaMemoryManager::MemGetInfo(int device_id, size_t *total,
+                                          size_t* free) {
+  std::cout<<"MemGetInfo: Check"<<std::endl;
+  cudaError_t e = cudaSetDevice(device_id);
+  if (e != cudaSuccess) {
+    std::cout << e << " Check setdevice failed: " << cudaGetErrorString(e)
+              << std::endl;
+  }
+  size_t free_, total_;
+  e = cudaMemGetInfo(&free_, &total_);
+  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << e << " Check GetInfo failed: " << cudaGetErrorString(e)
+              << std::endl;
+  } else {
+    std::cout << free_ << " " << total_ << std::endl;
+  }
+  std::cout << "MemGetInfo: Check Over" << std::endl;
+  return cudaSuccess;
+}
+
+bool CudaMemoryManager::TryAllocate(int device_id, size_t size) {
+  cudaError_t e = cudaSetDevice(device_id);
+  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << e << " TryAlloc SetDevice failed: " << cudaGetErrorString(e)
+              << std::endl;
+  }
+  size_t free, total;
+  e = cudaMemGetInfo(&free, &total);
+  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
+    std::cout << e << " TryAlloc GetInfo failed: " << cudaGetErrorString(e)
+              << std::endl;
+  }
+  return free > size + 1000000000;
+}
+
+
+BuddyMemoryManager::BuddyMemoryManager() {
   std::cout << "Initializing Memory Manager" << std::endl;
   int deviceNum;
   CUDA_CALL(cudaGetDeviceCount(&deviceNum));
@@ -63,8 +129,8 @@ MemoryManager::MemoryManager() {
   std::cout << "Memory Manager initialization completed" << std::endl;
 }
 
-MemoryManager::~MemoryManager() {
-  std::cout << "Destructing Memory Manager" << std::endl;
+BuddyMemoryManager::~BuddyMemoryManager() {
+  std::cout << "DestructingBuddy Memory Manager" << std::endl;
   typedef std::map<char*, Block*> MemoryPool;
   for (int deviceIdx = 0; deviceIdx < deviceCount_; deviceIdx++) {
     CUDA_CALL(cudaSetDevice(deviceIdx));
@@ -81,7 +147,7 @@ MemoryManager::~MemoryManager() {
   std::cout << "Memory Manager destruction completed" << std::endl;
 }
 
-cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
+cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
   std::cout << "Malloc size = " << size << " bytes on Buddy System No. " << deviceIdx << std::endl;
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
@@ -90,14 +156,14 @@ cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
   return cudaSuccess;
 }
 
-cudaError_t MemoryManager::Free(void* devptr, int deviceIdx) {
+cudaError_t BuddyMemoryManager::Free(void* devptr, int deviceIdx) {
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
   buddy_[deviceIdx]->Free(devptr);
   return cudaSuccess;
 }
 
-cudaError_t MemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
+cudaError_t BuddyMemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
   //TODO(qingsen): need implementation
   std::cout<<"Memcpy"<<std::endl;
   CUDA_CALL(cudaSetDevice(deviceIdx));
@@ -105,7 +171,7 @@ cudaError_t MemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, siz
 }
 
 //returns total memory and total free memory(not necessarily consequtive) in mmu
-cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free) {
+cudaError_t BuddyMemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free) {
   std::lock_guard<std::mutex> lock(mutex_);
   CUDA_CALL(cudaSetDevice(deviceIdx));
   if (buddy_[deviceIdx] == NULL) return cudaErrorInvalidValue;
@@ -114,7 +180,7 @@ cudaError_t MemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free
   return cudaSuccess;
 }
 
-bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
+bool BuddyMemoryManager::TryAllocate(int deviceIdx, size_t size) {
   std::cout << "Buddy System No." << deviceIdx << " has free = " << buddy_[deviceIdx]->GetFree() <<
 	       " and allocate = " << buddy_[deviceIdx]->GetAllocated() << std::endl;
   std::cout << "Buddy System No." << deviceIdx << ": Trying to allocate size = " << size << std::endl;
@@ -147,4 +213,28 @@ bool MemoryManager::TryAllocate(int deviceIdx, size_t size) {
   std::cout << "FAILURE: There isn't enough space" << std::endl;
   return false;
 }
-} //namespace mxnet
+
+// Factory functions.
+static std::shared_ptr<MemoryManager> GetMemoryManagerRef() {
+  static std::shared_ptr<MemoryManager> inst;
+  static bool set = false;
+  if (set) {
+    return inst;
+  } else {
+    std::string mem_mgr_type = dmlc::GetEnv("MXNET_MEM_MGR_TYPE",
+                                            std::string("CUDA"));
+    if (mem_mgr_type == "CUDA") {
+      inst.reset(new CudaMemoryManager());
+    } else if (mem_mgr_type == "Buddy") {
+      inst.reset(new BuddyMemoryManager());
+    }
+    set = true
+  }
+}
+
+static MemoryManager* GetMemoryManager() {
+  static MemoryManager* mm = GetMemoryManagerRef().get()
+  return mm;
+}
+
+} // namespace mxnet

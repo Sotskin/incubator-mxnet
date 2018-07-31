@@ -1,19 +1,20 @@
 #ifndef MXNET_MEM_MGR_H_
 #define MXNET_MEM_MGR_H_
 
-#include <mxnet/buddy.h>
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <math.h>
+#include <mxnet/buddy.h>
 #include <stdio.h>
 #include <string>
 
 namespace mxnet {
 
-const double GPU_UTIL_RATIO = 0.96; //save some memory for each device(subject to change)
+// Save some memory for each device(subject to change).
+const double GPU_UTIL_RATIO = 0.96;
 
 typedef enum {
   memStatus_Sucess,
@@ -33,22 +34,44 @@ inline std::string MemGetStatusString(memStatus_t status) {
 }
 
 class MemoryManager {
+  public:
+    ~MemoryManager();
+    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
+    cudaError_t Free(void* devptr, int deviceIdx);
+    cudaError_t Memcpy(int deviceIdx, void* dst,
+                       const void* src, size_t count, enum cudaMemcpyKind kind);
+    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
+    bool TryAllocate(int deviceId, size_t size);
+
+  private:
+    MemoryManager();
+}; // Class MemoryManager
+
+
+class CudaMemoryManager : MemoryManager {
+  public:
+    friend static std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+
+  private:
+    CudaMemoryManager();
+    ~CudaMemoryManager();
+}; // Class CudaMemoryManager
+
+class BuddyMemoryManager : MemoryManager {
+  public:
+    friend static std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+
   private:
     BuddySystem** buddy_;
     std::mutex mutex_;
     int deviceCount_;
-    MemoryManager(); 
 
-  public:
-    ~MemoryManager();
-    static MemoryManager* Get();
-    static std::shared_ptr<MemoryManager> _GetSharedRef();
-    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
-    cudaError_t Free(void* devptr, int deviceIdx);
-    cudaError_t Memcpy(int deviceId, void* dst,
-                       const void* src, size_t count, enum cudaMemcpyKind kind);
-    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
-    bool TryAllocate(int deviceId, size_t size);
-};  // Class MemoryManager
+    BuddyMemoryManager();
+    ~BuddyMemoryManager();
+}; // Class BuddyMemoryManager
+
+static std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+static MemoryManager* GetMemoryManager();
 } //namespace mxnet
+
 #endif // MXNET_MEM_MGR_H_

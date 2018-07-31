@@ -69,7 +69,7 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     swappable_handles_[device_id].erase(victim);
     divided_handles_[device_id][target->size].erase(victim);
     //pthread_rwlock_unlock(&swap_lock_);
-    cudaError_t e = memory_manager_->Memcpy(device_id, target->cpu_address, 
+    cudaError_t e = memory_manager_->Memcpy(device_id, target->cpu_address,
         target->dptr, target->size, cudaMemcpyDeviceToHost);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
       LOG(FATAL) << "Memcpy failed: " << cudaGetErrorString(e);
@@ -120,7 +120,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
   //std::cout<<"SetAddr "<<handle_id<<std::endl;
   auto iter = swap_info_.find(handle_id);
   if (iter == swap_info_.end()){
-    SwapInfo* info = new SwapInfo{handle_id, true, device_id, 
+    SwapInfo* info = new SwapInfo{handle_id, true, device_id,
       dptr, nullptr, size, 0};
     swap_info_[handle_id] = info;
     // FIXME(Sotskin): Temporaty Fix
@@ -141,7 +141,7 @@ void Swap::FreeAddr(handle_id_t handle_id) {
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
-    if (swappable_handles_[info->device_id].find(handle_id) 
+    if (swappable_handles_[info->device_id].find(handle_id)
         != swappable_handles_[info->device_id].end()) {
       swappable_handles_[info->device_id].erase(handle_id);
     }
@@ -170,7 +170,7 @@ void Swap::DelAddr(handle_id_t handle_id) {
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
-    if (swappable_handles_[info->device_id].find(handle_id) 
+    if (swappable_handles_[info->device_id].find(handle_id)
         != swappable_handles_[info->device_id].end()) {
       swappable_handles_[info->device_id].erase(handle_id);
     }
@@ -201,8 +201,8 @@ void* Swap::GetAddr(handle_id_t handle_id, bool prefetch) {
       ++(memory_history_->cache_miss);
     SwapIn(info);
   }
-  if (swap_locked_ && 
-      swappable_handles_[info->device_id].find(handle_id) != 
+  if (swap_locked_ &&
+      swappable_handles_[info->device_id].find(handle_id) !=
       swappable_handles_[info->device_id].end()) {
     swappable_handles_[info->device_id].erase(handle_id);
     divided_handles_[info->device_id][info->size].erase(handle_id);

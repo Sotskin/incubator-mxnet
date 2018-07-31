@@ -18,7 +18,7 @@ MemHistory::MemHistory() {
   is_recording_ = false;
   pre_recording_ = false;
   iteration_idx_ = 0;
-  swap_algorithm_ = dmlc::GetEnv("SWAP_ALGORITHM", std::string("LRU"));
+  swap_algorithm_ = dmlc::GetEnv("MXNET_SWAP_ALGORITHM", std::string("LRU"));
   history.resize(NUMBER_OF_GPU);
   ordered_history.resize(NUMBER_OF_GPU);
   lru_list.resize(NUMBER_OF_GPU);
@@ -34,7 +34,7 @@ MemHistory::MemHistory() {
   } else {
     std::cout << "Unknown Algorithm Name: " << swap_algorithm_ << std::endl;
     CHECK(0);
-  } 
+  }
 }
 
 MemHistory::~MemHistory() {}
@@ -72,13 +72,13 @@ void MemHistory::PreRecord(handle_id_t id, record_t op, int device) {
 
 void MemHistory::PutRecord(handle_id_t handle_id, int device,
                           record_t operation_id, size_t size) {
-  if(!IterationStarted()) { 
+  if(!IterationStarted()) {
     return;
   }
   if(IsPreRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     MemHistory::PreRecord(handle_id, operation_id, device);
-  } 
+  }
   if(IsRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     timestamp_t t = (duration_cast<microseconds>
@@ -120,18 +120,18 @@ handle_id_t MemHistory::NaiveHistory(
   handle_id_t latest_id = 0;
   for(auto &id : handles) {
     MemHistory::MemRecord r = {0,MemHistory::GET_ADDR,0,record_idx[device],0};
-    auto it = std::upper_bound(history[device][id].begin(), 
+    auto it = std::upper_bound(history[device][id].begin(),
         history[device][id].end(), r, CompareByStep);
     if(it == history[device][id].end()){
       /*
-      if(it != history[device][id].begin() && 
+      if(it != history[device][id].begin() &&
           record_idx[device] - history[device][id].back().record_step < 10) {
         // Victim just used, skip
         continue;
       }
       */
       return id;
-    } 
+    }
     else if(it->record_step - record_idx[device] < params->no_swap_steps) {
       continue;
     }
@@ -162,7 +162,7 @@ handle_id_t MemHistory::SizeHistory(
       if (victim != 0) {
         return victim;
       }
-    } 
+    }
     if (!reverse_flag) {
       candidates ++;
       if (candidates == divided_handles->end()) {
@@ -187,7 +187,7 @@ handle_id_t MemHistory::SizeHistory(
   return 0;
 }
 
-handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device, 
+handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device,
     void* arg) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ <= 2) {
@@ -262,9 +262,9 @@ void MemHistory::StopIteration() {
   }
   ++iteration_idx_;
   std::cout << "num_get_addr " << num_get_addr << std::endl
-    << "num_swap_in: " << num_swap_in << " " 
+    << "num_swap_in: " << num_swap_in << " "
     << "total: " << swap_in_total << std::endl
-    << "num_swap_out " << num_swap_out << " " 
+    << "num_swap_out " << num_swap_out << " "
     << "total: " << swap_out_total << std::endl;
 }
 

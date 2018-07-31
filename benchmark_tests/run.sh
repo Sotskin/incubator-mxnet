@@ -10,10 +10,11 @@ echo "LAYERS = ${LAYERS}"
 echo "BATCH_SIZE = ${BATCH_SIZE}"
 echo "WIDE_SCALE = ${WIDE_SCALE}"
 
+export MXNET_ENGINE_TYPE=NaiveEngine
+export MXNET_MEM_MGR_TYPE=CUDA
 export MXNET_PREFETCH_STEP_AHEAD=${STEPS}
 export MXNET_PREFETCH_ALGORITHM=${PREFETCH}
 export MXNET_SWAP_ALGORITHM=${SWAP}
-export MXNET_ENGINE_TYPE=NaiveEngine
 export PYTHONPATH=/home/sotskin/incubator-mxnet/python
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 export CUDA_VISIBLE_DEVICES=1

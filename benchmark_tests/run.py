@@ -102,6 +102,8 @@ def main():
     parser.add_argument('--mxnet_prefetch_algorithm', type=str,
                         default='ComputePrefetch',
                         help='Prefetch look ahead steps.')
+    parser.add_argument('--mxnet_mem_mgr_type', type=str, default='CUDA',
+                        help='The memory manager type for the swapping system.')
     parser.add_argument('--mxnet_prefetch_steps', type=int, default=30,
                         help='Prefetch look ahead steps.')
     parser.add_argument('--mxnet_swap_algorithm', type=str,

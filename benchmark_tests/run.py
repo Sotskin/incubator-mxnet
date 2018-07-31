@@ -1,9 +1,9 @@
 '''
 Usage:
 Here, we use resnet as an example.
-1. # python3 resnet --dump
+1. # python3 run.py resnet --dump
     * Modify config_resnet to fit your environment and requirement.
-2. python3 @config_resnet
+2. python3 run.py @config_resnet
 '''
 import argparse
 import os
@@ -12,7 +12,7 @@ import sys
 import subprocess
 
 
-def run_script(args):
+def run_script(args, also_print=False):
     if args.model == 'resnet':
         log_name = './log_{}_{}_{}_{}_{}_{}_{}'.format(
                         args.model, args.num_layers, args.batch_size,
@@ -35,10 +35,18 @@ def run_script(args):
     # print(options)
     # print(envs)
     with open(log_name, 'w') as fp:
-        ret = subprocess.run(['python', 'benchmark.py'] + options, env=envs,
-                             stdout=fp, stderr=subprocess.STDOUT)
-    # FIXME(fegin): Use pipe to capture stdout and stderr so that we can output
-    #               at the same time.
+        proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                universal_newlines=True)
+    with open(log_name, 'w') as fp:
+        while True:
+            line = proc.stdout.readline()
+            if line:
+                if also_print:
+                    print(line, end='')
+                fp.write(line)
+            else:
+                break
 
 
 class DumpArguments(argparse.Action):

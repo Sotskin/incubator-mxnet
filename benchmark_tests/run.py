@@ -35,12 +35,11 @@ def run_script(args):
     # print(options)
     # print(envs)
     with open(log_name, 'w') as fp:
-        subprocess.run(['python', 'benchmark.py'] + options, env=envs,
-                       stdout=fp, stderr=subprocess.STDOUT)
-    
+        ret = subprocess.run(['python', 'benchmark.py'] + options, env=envs,
+                             stdout=fp, stderr=subprocess.STDOUT)
+    # FIXME(fegin): Use pipe to capture stdout and stderr so that we can output
+    #               at the same time.
 
-# python benchmark.py $OPTIONS resnet > $LOG_NAME
-    
 
 class DumpArguments(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):

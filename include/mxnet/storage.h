@@ -60,8 +60,10 @@ class Storage {
      */
     int shared_pid{-1};
     int shared_id{-1};
-
     void Free(){
+      Swap::Get()->FreeAddr(id_);
+    }
+    void FreeDptr(){
       Swap::Get()->DelAddr(id_);
     }
 

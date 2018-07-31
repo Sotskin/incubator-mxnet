@@ -1,4 +1,4 @@
-# Suggested Setting: Layers=269 Batch_size=4 Wide_scale=4 
+# Suggested Setting: ./lstm.sh 32 30 2 1024
 BATCH_SIZE=$1
 SEQ_LEN=$2
 LAYERS=$3
@@ -17,7 +17,7 @@ echo "HIDDEN_SIZE = ${HIDDEN_SIZE}"
 
 export SWAP_ALGORITHM=NaiveHistory
 export MXNET_ENGINE_TYPE=NaiveEngine
-export PYTHONPATH=/home/karl/debug_naive/incubator-mxnet/python
+export PYTHONPATH=/home/sotskin/incubator-mxnet/python
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 export CUDA_VISIBLE_DEVICES=1
 

@@ -29,6 +29,7 @@ Swap::Swap() {
     free_memory_.push_back(0);
   }
   swap_locked_ = false;
+  std::cout << "Initialize Swap done" <<std::endl;
 }
 
 Swap::~Swap() {

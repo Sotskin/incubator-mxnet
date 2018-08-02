@@ -35,18 +35,13 @@ inline std::string MemGetStatusString(memStatus_t status) {
 
 class MemoryManager {
   public:
-    ~MemoryManager();
-    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
-    cudaError_t Free(void* devptr, int deviceIdx);
-    cudaError_t Memcpy(int deviceIdx, void* dst,
-                       const void* src, size_t count, enum cudaMemcpyKind kind);
-    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
-    bool TryAllocate(int deviceId, size_t size);
-
-  protected:
-    MemoryManager();
+    virtual cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx) = 0;
+    virtual cudaError_t Free(void* devptr, int deviceIdx) = 0;
+    virtual cudaError_t Memcpy(int deviceIdx, void* dst,
+                       const void* src, size_t count, enum cudaMemcpyKind kind) = 0;
+    virtual cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free) = 0;
+    virtual bool TryAllocate(int deviceId, size_t size) = 0;
 }; // Class MemoryManager
-
 
 class CudaMemoryManager : public MemoryManager {
   public:

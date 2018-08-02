@@ -8,11 +8,12 @@ Here, we use resnet as an example.
 import argparse
 import os
 import pprint
-import sys
+import signal
 import subprocess
+import sys
 
 
-def run_script(args, also_print=False):
+def run_script(args):
     if args.model == 'resnet':
         log_name = './log_{}_{}_{}_{}_{}_{}_{}'.format(
                         args.model, args.num_layers, args.batch_size,
@@ -31,22 +32,28 @@ def run_script(args, also_print=False):
         raise NotImplementedError
     options.append(args.model)
     envs = {arg.upper(): str(getattr(args, arg)) for arg in vars(args)}
-    # print(log_name)
-    # print(options)
-    # print(envs)
-    with open(log_name, 'w') as fp:
-        proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                universal_newlines=True)
+    proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            universal_newlines=True)
     with open(log_name, 'w') as fp:
         while True:
             line = proc.stdout.readline()
             if line:
-                if also_print:
+                if args.also_print:
                     print(line, end='')
                 fp.write(line)
             else:
                 break
+        proc.communicate()
+        message = 'The program exits with returncode = {}\n'\
+                    .format(proc.returncode)
+        if proc.returncode != 0:
+            if signal.Signals(-proc.returncode).name == 'SIGSEGV':
+                message += 'Segmentation Fault.\n'
+            else:
+                message += signal.Signals(-proc.returncode).name + '\n'
+        fp.write(message)
+        print(message)
 
 
 class DumpArguments(argparse.Action):
@@ -65,10 +72,14 @@ class DumpArguments(argparse.Action):
                 sys.exit(0)
         with open(path, 'w') as fp:
             fp.write(getattr(namespace, 'model') + '\n')
-            for arg in vars(namespace):
+            for arg in sorted(vars(namespace)):
                 if arg != 'model' and arg != 'dump':
-                    fp.write('--' + arg + '\n')
-                    fp.write(str(getattr(namespace, arg)) + '\n')
+                    val = getattr(namespace, arg)
+                    if type(val) == bool:
+                        fp.write('--' + ('' if val else 'no') +  arg + '\n')
+                    else:
+                        fp.write('--' + arg + '\n')
+                        fp.write(str(val) + '\n')
         sys.exit(0)
 
             
@@ -78,6 +89,7 @@ def main():
     parser.add_argument('model', type=str, default='resnet',
                         help='The model to be tested.')
     parser.add_argument('--dump', type=bool, action=DumpArguments)
+    parser.add_argument('--also_print', action='store_true')
     # Environment settings
     parser.add_argument('--pythonpath', type=str, default='/home/fegin/',
                         help='PYTHONPATH')

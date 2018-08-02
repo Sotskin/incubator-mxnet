@@ -218,11 +218,10 @@ bool BuddyMemoryManager::TryAllocate(int deviceIdx, size_t size) {
 std::shared_ptr<MemoryManager> GetMemoryManagerRef() {
   static std::shared_ptr<MemoryManager> inst;
   static bool set = false;
-  if (set) {
-    return inst;
-  } else {
+  if (!set) {
     std::string mem_mgr_type = dmlc::GetEnv("MXNET_MEM_MGR_TYPE",
                                             std::string("CUDA"));
+    std::cout << "MXNET_MEM_MGR_TYPE: " << mem_mgr_type << std::endl;
     if (mem_mgr_type == "CUDA") {
       inst.reset(dynamic_cast<MemoryManager*>(new CudaMemoryManager()));
     } else if (mem_mgr_type == "Buddy") {
@@ -230,6 +229,7 @@ std::shared_ptr<MemoryManager> GetMemoryManagerRef() {
     }
     set = true;
   }
+  return inst;
 }
 
 MemoryManager* GetMemoryManager() {

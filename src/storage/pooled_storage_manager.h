@@ -51,7 +51,8 @@ class GPUPooledStorageManager final : public StorageManager {
    */
   GPUPooledStorageManager(int device_id) {
     reserve_ = dmlc::GetEnv("MXNET_GPU_MEM_POOL_RESERVE", 5);
-    memory_manager_ = MemoryManager::_GetSharedRef();
+    //memory_manager_ = MemoryManager::_GetSharedRef();
+    memory_manager_ = GetMemoryManagerRef();
     swap_ = Swap::_GetSharedRef();
     do_reuse_ = true;
     device_id_ = device_id;

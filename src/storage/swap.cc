@@ -21,7 +21,8 @@ std::shared_ptr<Swap> Swap::_GetSharedRef() {
 Swap::Swap() {
   std::cout << "Initialize Swap" <<std::endl;
   memory_history_ = MemHistory::_GetSharedRef();
-  memory_manager_ = MemoryManager::_GetSharedRef();
+  //memory_manager_ = MemoryManager::_GetSharedRef();
+  memory_manager_ = GetMemoryManagerRef();
   swap_lock_ = PTHREAD_RWLOCK_INITIALIZER;
   for (int i = 0; i < NUMBER_OF_GPU; ++i){
     locks_[i] = PTHREAD_RWLOCK_INITIALIZER;

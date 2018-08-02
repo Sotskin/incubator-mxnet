@@ -180,7 +180,7 @@ Block* BuddySystem::Merge(Block* block, int idx) {
         prev->SetNext(next->GetNext());
         next->SetNext(NULL);
         mergedWithNext = true;
-        std::cout << "Merged with the next block" << std::cout;
+        std::cout << "Merged with the next block" << std::endl;
       }
     }
   } else { //if did not merge with previous block(i.e curr still exists), check if it can be merged with next block

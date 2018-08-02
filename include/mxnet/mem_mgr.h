@@ -43,23 +43,37 @@ class MemoryManager {
     cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
     bool TryAllocate(int deviceId, size_t size);
 
-  private:
+  protected:
     MemoryManager();
 }; // Class MemoryManager
 
 
-class CudaMemoryManager : MemoryManager {
+class CudaMemoryManager : public MemoryManager {
   public:
-    friend static std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
+    cudaError_t Free(void* devptr, int deviceIdx);
+    cudaError_t Memcpy(int deviceIdx, void* dst,
+                       const void* src, size_t count, enum cudaMemcpyKind kind);
+    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
+    bool TryAllocate(int deviceId, size_t size);
+
+    friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 
   private:
     CudaMemoryManager();
     ~CudaMemoryManager();
 }; // Class CudaMemoryManager
 
-class BuddyMemoryManager : MemoryManager {
+class BuddyMemoryManager : public MemoryManager {
   public:
-    friend static std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
+    cudaError_t Free(void* devptr, int deviceIdx);
+    cudaError_t Memcpy(int deviceIdx, void* dst,
+                       const void* src, size_t count, enum cudaMemcpyKind kind);
+    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
+    bool TryAllocate(int deviceId, size_t size);
+
+    friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 
   private:
     BuddySystem** buddy_;
@@ -70,8 +84,8 @@ class BuddyMemoryManager : MemoryManager {
     ~BuddyMemoryManager();
 }; // Class BuddyMemoryManager
 
-static std::shared_ptr<MemoryManager> GetMemoryManagerRef();
-static MemoryManager* GetMemoryManager();
+std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+MemoryManager* GetMemoryManager();
 } //namespace mxnet
 
 #endif // MXNET_MEM_MGR_H_

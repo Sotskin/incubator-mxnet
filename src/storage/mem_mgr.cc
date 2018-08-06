@@ -64,11 +64,11 @@ cudaError_t CudaMemoryManager::Free(void* devptr, int device_id) {
 
 cudaError_t CudaMemoryManager::MemGetInfo(int device_id, size_t* total,
                                           size_t* free) {
-  std::cout<<"MemGetInfo: Check"<<std::endl;
+  //std::cout<<"MemGetInfo: Check"<<std::endl;
   CUDA_CALL(cudaSetDevice(device_id));
   CUDA_CALL(cudaMemGetInfo(free, total));
-  std::cout << *free << " " << *total << std::endl;
-  std::cout << "MemGetInfo: Check Over" << std::endl;
+  //std::cout << *free << " " << *total << std::endl;
+  //std::cout << "MemGetInfo: Check Over" << std::endl;
   return cudaSuccess;
 }
 

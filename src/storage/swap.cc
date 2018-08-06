@@ -52,8 +52,8 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
       CHECK(0);
     }
     SwapInfo *target = swap_info_[victim];
-    std::cout << "SwapOut " << victim << " " << target->size << " "
-              << target->swap_count << std::endl;
+    //std::cout << "SwapOut " << victim << " " << target->size << " "
+              //<< target->swap_count << std::endl;
     target->swap_count++;
     memory_history_->num_swap_out++;
     memory_history_->swap_out_total += target->size;

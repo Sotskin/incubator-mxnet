@@ -34,7 +34,7 @@ def run_script(args):
     envs = {arg.upper(): str(getattr(args, arg)) for arg in vars(args)}
     proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            universal_newlines=True)
+                            bufsize=1, universal_newlines=True)
     with open(log_name, 'w') as fp:
         while True:
             line = proc.stdout.readline()
@@ -44,14 +44,20 @@ def run_script(args):
                 fp.write(line)
             else:
                 break
-        proc.communicate()
+        stdout, stderr = proc.communicate()
         message = 'The program exits with returncode = {}\n'\
                     .format(proc.returncode)
         if proc.returncode != 0:
-            if signal.Signals(-proc.returncode).name == 'SIGSEGV':
+            name = 'None'
+            for k, v in signal.__dict__.items():
+                if k.startswith('SIG') and not k.startswith('SIG_'):
+                    if getattr(signal, k) == -proc.returncode:
+                        name = k
+                        break
+            if name == 'SIGSEGV':
                 message += 'Segmentation Fault.\n'
             else:
-                message += signal.Signals(-proc.returncode).name + '\n'
+                message += name + " : " + str(proc.returncode) + '\n'
         fp.write(message)
         print(message)
 
@@ -82,7 +88,7 @@ class DumpArguments(argparse.Action):
                         fp.write(str(val) + '\n')
         sys.exit(0)
 
-            
+
 def main():
     parser = argparse.ArgumentParser('Benchmark Tests',
                                      fromfile_prefix_chars='@')

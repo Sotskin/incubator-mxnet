@@ -32,69 +32,42 @@ CudaMemoryManager::~CudaMemoryManager() {
 
 cudaError_t CudaMemoryManager::Malloc(void*& devptr, size_t size,
                                       int device_id) {
-  cudaSetDevice(device_id);
-  cudaError_t e = cudaMalloc(&devptr, size);
-  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << "Malloc failed: " << cudaGetErrorString(e) << std::endl;
-  }
-  return e;
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaMalloc(&devptr, size));
+  return cudaSuccess;
 }
 
 cudaError_t CudaMemoryManager::Free(void* devptr, int device_id) {
-  cudaSetDevice(device_id);
-  cudaError_t e = cudaFree(devptr);
-  if(e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << "Free failed: " << cudaGetErrorString(e) << std::endl;
-  }
-  return e;
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaFree(devptr));
+  return cudaSuccess;
 }
 
 cudaError_t CudaMemoryManager::Memcpy(int device_id, void* dst, const void* src,
                                       size_t count, enum cudaMemcpyKind kind) {
-  cudaSetDevice(device_id);
-  cudaSetDevice(device_id);
-  cudaError_t e = cudaMemcpy(dst, src, count, kind);
-  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << "Memcpy failed: " << cudaGetErrorString(e) << std::endl;
-  }
-  return e;
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaMemcpy(dst, src, count, kind));
+  return cudaSuccess;
 }
 
 cudaError_t CudaMemoryManager::MemGetInfo(int device_id, size_t *total,
                                           size_t* free) {
   std::cout<<"MemGetInfo: Check"<<std::endl;
-  cudaError_t e = cudaSetDevice(device_id);
-  if (e != cudaSuccess) {
-    std::cout << e << " Check setdevice failed: " << cudaGetErrorString(e)
-              << std::endl;
-  }
+  CUDA_CALL(cudaSetDevice(device_id));
   size_t free_, total_;
-  e = cudaMemGetInfo(&free_, &total_);
-  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << e << " Check GetInfo failed: " << cudaGetErrorString(e)
-              << std::endl;
-  } else {
-    std::cout << free_ << " " << total_ << std::endl;
-  }
+  CUDA_CALL(cudaMemGetInfo(&free_, &total_));
+  std::cout << free_ << " " << total_ << std::endl;
   std::cout << "MemGetInfo: Check Over" << std::endl;
   return cudaSuccess;
 }
 
 bool CudaMemoryManager::TryAllocate(int device_id, size_t size) {
-  cudaError_t e = cudaSetDevice(device_id);
-  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << e << " TryAlloc SetDevice failed: " << cudaGetErrorString(e)
-              << std::endl;
-  }
+  CUDA_CALL(cudaSetDevice(device_id));
   size_t free, total;
-  e = cudaMemGetInfo(&free, &total);
-  if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
-    std::cout << e << " TryAlloc GetInfo failed: " << cudaGetErrorString(e)
-              << std::endl;
-  }
+  CUDA_CALL(cudaMemGetInfo(&free, &total));
+  // TODO(fegin): This fixed threshold is not acceptable.
   return free > size + 1000000000;
 }
-
 
 BuddyMemoryManager::BuddyMemoryManager() {
   std::cout << "Initializing Memory Manager" << std::endl;

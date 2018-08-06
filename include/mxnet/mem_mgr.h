@@ -16,23 +16,6 @@ namespace mxnet {
 // Save some memory for each device(subject to change).
 const double GPU_UTIL_RATIO = 0.96;
 
-typedef enum {
-  memStatus_Sucess,
-  memStatus_InvalidValue,
-  memStatus_OutOfMemory,
-  memStatus_CUDAError
-} memStatus_t;
-
-inline std::string MemGetStatusString(memStatus_t status) {
-  switch (status) {
-    case memStatus_Sucess: return "Sucess";
-    case memStatus_InvalidValue: return "Invalid value";
-    case memStatus_OutOfMemory: return "Out of memory";
-    case memStatus_CUDAError: return "CUDA error";
-  }
-  return "Unknown error";
-}
-
 class MemoryManager {
   public:
     virtual cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx) = 0;

@@ -18,8 +18,10 @@ typedef enum {
 } blockStatus_t;
   
 const int MIN_ALLOC_SIZE = 128;
+// TODO(fegin): This fixed value is not acceptable.
 const size_t CLEAN_UP_BOUNDRY = 500000000;
 
+// TODO(fegin): Since everything is integer, we can use << and >> to replace pow and log2.
 inline int GetListIdx(size_t size) {
   if (size <= 128) return 0;
   return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MIN_ALLOC_SIZE)));

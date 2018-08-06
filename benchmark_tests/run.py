@@ -21,6 +21,7 @@ def run_script(args):
                         args.mxnet_prefetch_algorithm,
                         args.mxnet_prefetch_steps)
         options = ['--num_gpus={}'.format(args.num_gpus),
+                   '--num_loops={}'.format(args.num_loops),
                    '--num_layers={}'.format(args.num_layers),
                    '--wide_scale={}'.format(args.wide_scale),
                    '--batch_size={}'.format(args.batch_size)]

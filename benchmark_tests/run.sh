@@ -19,5 +19,5 @@ export PYTHONPATH=/home/sotskin/incubator-mxnet/python
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 export CUDA_VISIBLE_DEVICES=1
 
-python benchmark.py --num_gpus=1 --num_layers=${LAYERS} --batch_size=${BATCH_SIZE} --wide_scale=${WIDE_SCALE} --num_loop=10 resnet > log_resnet_${LAYERS}_${BATCH_SIZE}_${WIDE_SCALE}_${SWAP}_${PREFETCH}_${STEPS}
+python benchmark.py --num_gpus=1 --num_layers=${LAYERS} --batch_size=${BATCH_SIZE} --wide_scale=${WIDE_SCALE} --num_loops=10 resnet > log_resnet_${LAYERS}_${BATCH_SIZE}_${WIDE_SCALE}_${SWAP}_${PREFETCH}_${STEPS}
 

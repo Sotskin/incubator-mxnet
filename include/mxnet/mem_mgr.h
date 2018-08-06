@@ -33,12 +33,10 @@ class MemoryManager {
 
 class CudaMemoryManager : public MemoryManager {
   public:
-    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
-    cudaError_t Free(void* devptr, int device_id);
-    cudaError_t Memcpy(int device_id, void* dst,
-                       const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);
+    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
+    cudaError_t Free(void* devptr, int device_id);
 
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 
@@ -49,12 +47,10 @@ class CudaMemoryManager : public MemoryManager {
 
 class BuddyMemoryManager : public MemoryManager {
   public:
-    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
-    cudaError_t Free(void* devptr, int device_id);
-    cudaError_t Memcpy(int device_id, void* dst,
-                       const void* src, size_t count, enum cudaMemcpyKind kind);
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);
+    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
+    cudaError_t Free(void* devptr, int device_id);
 
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 

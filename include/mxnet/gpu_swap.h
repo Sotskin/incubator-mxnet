@@ -8,7 +8,7 @@
 #include <stack>
 #include <string>
 #include <mxnet/gpu_swap_history.h>
-#include <mxnet/mem_mgr.h>
+#include <mxnet/gpu_swap_memmgr.h>
 #if MXNET_USE_CUDA
 #include "./cuda_runtime.h"
 #endif // MXNET_USE_CUDA

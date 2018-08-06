@@ -5,8 +5,8 @@
 #include <map>
 #include <dmlc/parameter.h>
 #include <dmlc/logging.h>
+#include <mxnet/gpu_swap.h>
 #include <mxnet/gpu_swap_history.h>
-#include <mxnet/swap.h>
 #include "./gpu_swap_prefetch.h"
 
 

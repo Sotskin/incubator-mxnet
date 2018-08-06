@@ -1,7 +1,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <mxnet/swap.h>
+#include <mxnet/gpu_swap.h>
 #include <dmlc/logging.h>
 #include <dmlc/parameter.h>
 #include "../common/cuda_utils.h"

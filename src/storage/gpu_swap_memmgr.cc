@@ -5,7 +5,7 @@
 #include <dmlc/logging.h>
 #include <math.h>
 #include <mxnet/buddy.h>
-#include <mxnet/mem_mgr.h>
+#include <mxnet/gpu_swap_memmgr.h>
 #include "../common/cuda_utils.h"
 
 namespace mxnet {

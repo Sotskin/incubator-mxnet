@@ -14,13 +14,32 @@ namespace mxnet {
   {								 \
     cudaError_t e = (func);     				 \
     CHECK(e == cudaSuccess || e == cudaErrorCudartUnloading)     \
-        << "CUDA: " << cudaGetErrorString(e);                    \
+        << __FUNCTION__ << ":" << __LINE__                       \
+        << "has a CUDA error: " << cudaGetErrorString(e);        \
   }
 
-static inline void CHECK_CUDA_ERROR() {									
-  cudaError_t e = cudaGetLastError();					
-  CHECK_EQ(e, cudaSuccess) << "CUDA: " << cudaGetErrorString(e);
+cudaError_t MemoryManager::Memcpy(int device_id, void* dst, const void* src,
+                                  size_t count, enum cudaMemcpyKind kind) {
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaMemcpy(dst, src, count, kind));
+  return cudaSuccess;
 }
+
+cudaError_t MemoryManager::MemcpyAsync(
+        int device_id, void* dst, const void* src, size_t count,
+        cudaMemcpyKind kind, cudaStream_t stream) {
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaMemcpyAsync(dst, src, count, kind, stream));
+  return cudaSuccess;
+}
+
+cudaError_t MemoryManager::StreamSynchronize(int device_id,
+                                             cudaStream_t stream) {
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaStreamSynchronize(stream));
+  return cudaSuccess;
+}
+
 
 CudaMemoryManager::CudaMemoryManager() {
   std::cout << "Initialize CUDA Memory Allocator" << std::endl;
@@ -43,22 +62,12 @@ cudaError_t CudaMemoryManager::Free(void* devptr, int device_id) {
   return cudaSuccess;
 }
 
-cudaError_t CudaMemoryManager::Memcpy(int device_id, void* dst, const void* src,
-                                      size_t count, enum cudaMemcpyKind kind) {
-  CUDA_CALL(cudaSetDevice(device_id));
-  CUDA_CALL(cudaMemcpy(dst, src, count, kind));
-  return cudaSuccess;
-}
-
 cudaError_t CudaMemoryManager::MemGetInfo(int device_id, size_t* total,
                                           size_t* free) {
   std::cout<<"MemGetInfo: Check"<<std::endl;
   CUDA_CALL(cudaSetDevice(device_id));
-  size_t free_, total_;
-  CUDA_CALL(cudaMemGetInfo(&free_, &total_));
-  std::cout << free_ << " " << total_ << std::endl;
-  *total = total_;
-  *free = free_;
+  CUDA_CALL(cudaMemGetInfo(free, total));
+  std::cout << *free << " " << *total << std::endl;
   std::cout << "MemGetInfo: Check Over" << std::endl;
   return cudaSuccess;
 }
@@ -79,9 +88,9 @@ BuddyMemoryManager::BuddyMemoryManager() {
   deviceCount_ = deviceNum;
   buddy_ = new BuddySystem*[deviceNum];
 
-  for (int deviceIdx = 0; deviceIdx < deviceNum; deviceIdx++) {
-    buddy_[deviceIdx] = NULL;
-    CUDA_CALL(cudaSetDevice(deviceIdx));
+  for (int device_id = 0; device_id < deviceNum; device_id++) {
+    buddy_[device_id] = NULL;
+    CUDA_CALL(cudaSetDevice(device_id));
 
     size_t avail, total;
     size_t mb = 1 << 20;
@@ -95,10 +104,14 @@ BuddyMemoryManager::BuddyMemoryManager() {
     }
 
     if (avail > 0) {
-      buddy_[deviceIdx] = new BuddySystem(new Block(wholeMemory, avail), avail, deviceIdx);
-      std::cout << "Buddy System No." << deviceIdx << " initialized with size = " << avail << " bytes"  << std::endl;
+      buddy_[device_id] = new BuddySystem(new Block(wholeMemory, avail), avail,
+                                          device_id);
+      std::cout << "Buddy System No." << device_id
+                << " initialized with size = " << avail << " bytes"
+                << std::endl;
     } else {
-      std::cout << "Warning: There's no memory left on device: " << deviceIdx << std::endl;
+      std::cout << "Warning: There's no memory left on device: " << device_id
+                << std::endl;
     }
   }
   std::cout << "Memory Manager initialization completed" << std::endl;
@@ -107,64 +120,67 @@ BuddyMemoryManager::BuddyMemoryManager() {
 BuddyMemoryManager::~BuddyMemoryManager() {
   std::cout << "DestructingBuddy Memory Manager" << std::endl;
   typedef std::map<char*, Block*> MemoryPool;
-  for (int deviceIdx = 0; deviceIdx < deviceCount_; deviceIdx++) {
-    CUDA_CALL(cudaSetDevice(deviceIdx));
-    BuddySystem* buddy = buddy_[deviceIdx];
+  for (int device_id = 0; device_id < deviceCount_; device_id++) {
+    CUDA_CALL(cudaSetDevice(device_id));
+    BuddySystem* buddy = buddy_[device_id];
     buddy->~BuddySystem();
     //MemoryPool mp = buddy->GetMemPool();
     //while (!mp.empty()) {
-    //  std::cout << "Destructing block at addr: " << (void*)mp.bigin()->first() << std::endl;
+    //  std::cout << "Destructing block at addr: " << (void*)mp.bigin()->first()
+    //            << std::endl;
     //  buddy->Free((void*)(mp.begin()->first));
     //}
-    cudaFree((void*)buddy->GetStart());
-    std::cout << "Buddy System No." << buddy->GetGPUIdx() << " destructed" << std::endl;
+    CUDA_CALL(cudaFree((void*)buddy->GetStart()));
+    std::cout << "Buddy System No." << buddy->GetGPUIdx() << " destructed"
+              << std::endl;
   }
   std::cout << "Memory Manager destruction completed" << std::endl;
 }
 
-cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size, int deviceIdx) {
-  std::cout << "Malloc size = " << size << " bytes on Buddy System No. " << deviceIdx << std::endl;
+cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size,
+                                       int device_id) {
+  std::cout << "Malloc size = " << size << " bytes on Buddy System No. "
+            << device_id << std::endl;
   std::lock_guard<std::mutex> lock(mutex_);
-  CUDA_CALL(cudaSetDevice(deviceIdx));
-  devptr = buddy_[deviceIdx]->Alloc(size);
-  if (!devptr) return cudaErrorMemoryAllocation;
+  CUDA_CALL(cudaSetDevice(device_id));
+  devptr = buddy_[device_id]->Alloc(size);
+  if (!devptr)
+      return cudaErrorMemoryAllocation;
   return cudaSuccess;
 }
 
-cudaError_t BuddyMemoryManager::Free(void* devptr, int deviceIdx) {
+cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
   std::lock_guard<std::mutex> lock(mutex_);
-  CUDA_CALL(cudaSetDevice(deviceIdx));
-  buddy_[deviceIdx]->Free(devptr);
+  CUDA_CALL(cudaSetDevice(device_id));
+  buddy_[device_id]->Free(devptr);
   return cudaSuccess;
-}
-
-cudaError_t BuddyMemoryManager::Memcpy(int deviceIdx, void* dst, const void* src, size_t count, enum cudaMemcpyKind kind) {
-  //TODO(qingsen): need implementation
-  std::cout<<"Memcpy"<<std::endl;
-  CUDA_CALL(cudaSetDevice(deviceIdx));
-  return cudaMemcpy(dst, src, count, kind);
 }
 
 //returns total memory and total free memory(not necessarily consequtive) in mmu
-cudaError_t BuddyMemoryManager::MemGetInfo(int deviceIdx, size_t* total, size_t* free) {
+cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
+                                           size_t* free) {
   std::lock_guard<std::mutex> lock(mutex_);
-  CUDA_CALL(cudaSetDevice(deviceIdx));
-  if (buddy_[deviceIdx] == NULL) return cudaErrorInvalidValue;
-  *total = buddy_[deviceIdx]->GetTotal();
-  *free = buddy_[deviceIdx]->GetFree();
+  CUDA_CALL(cudaSetDevice(device_id));
+  if (buddy_[device_id] == NULL)
+      return cudaErrorInvalidValue;
+  *total = buddy_[device_id]->GetTotal();
+  *free = buddy_[device_id]->GetFree();
   return cudaSuccess;
 }
 
-bool BuddyMemoryManager::TryAllocate(int deviceIdx, size_t size) {
-  std::cout << "Buddy System No." << deviceIdx << " has free = " << buddy_[deviceIdx]->GetFree() <<
-	       " and allocate = " << buddy_[deviceIdx]->GetAllocated() << std::endl;
-  std::cout << "Buddy System No." << deviceIdx << ": Trying to allocate size = " << size << std::endl;
-  CUDA_CALL(cudaSetDevice(deviceIdx));
-  BuddySystem* buddy = buddy_[deviceIdx];
+bool BuddyMemoryManager::TryAllocate(int device_id, size_t size) {
+  std::cout << "Buddy System No." << device_id << " has free = "
+            << buddy_[device_id]->GetFree() << " and allocate = "
+            << buddy_[device_id]->GetAllocated() << std::endl;
+  std::cout << "Buddy System No." << device_id << ": Trying to allocate size = "
+            << size << std::endl;
+  CUDA_CALL(cudaSetDevice(device_id));
+  BuddySystem* buddy = buddy_[device_id];
   Block** freeList = buddy->GetFreeList();
   int freeListSize = buddy->GetFreeListSize();
   int idx = GetListIdx(size);
-  if (idx == 0) idx = 1;
+  if (idx == 0)
+      idx = 1;
 
   for (int i = idx; i < freeListSize; i++) {
     if (freeList[i] != NULL) {

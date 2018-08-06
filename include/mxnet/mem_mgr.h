@@ -18,22 +18,27 @@ const double GPU_UTIL_RATIO = 0.96;
 
 class MemoryManager {
   public:
-    virtual cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx) = 0;
-    virtual cudaError_t Free(void* devptr, int deviceIdx) = 0;
-    virtual cudaError_t Memcpy(int deviceIdx, void* dst,
-                       const void* src, size_t count, enum cudaMemcpyKind kind) = 0;
-    virtual cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free) = 0;
-    virtual bool TryAllocate(int deviceId, size_t size) = 0;
+    cudaError_t Memcpy(int device_id, void* dst, const void* src, size_t count,
+                       cudaMemcpyKind kind);
+    cudaError_t MemcpyAsync(int device_id, void* dst, const void* src,
+                            size_t count, cudaMemcpyKind kind,
+                            cudaStream_t stream);
+    cudaError_t StreamSynchronize(int device_id, cudaStream_t stream);
+    virtual cudaError_t MemGetInfo(int device_id, size_t* total,
+                                   size_t* free) = 0;
+    virtual bool TryAllocate(int device_id, size_t size) = 0;
+    virtual cudaError_t Malloc(void*& devptr, size_t size, int device_id) = 0;
+    virtual cudaError_t Free(void* devptr, int device_id) = 0;
 }; // Class MemoryManager
 
 class CudaMemoryManager : public MemoryManager {
   public:
-    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
-    cudaError_t Free(void* devptr, int deviceIdx);
-    cudaError_t Memcpy(int deviceIdx, void* dst,
+    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
+    cudaError_t Free(void* devptr, int device_id);
+    cudaError_t Memcpy(int device_id, void* dst,
                        const void* src, size_t count, enum cudaMemcpyKind kind);
-    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
-    bool TryAllocate(int deviceId, size_t size);
+    cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
+    bool TryAllocate(int device_id, size_t size);
 
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 
@@ -44,12 +49,12 @@ class CudaMemoryManager : public MemoryManager {
 
 class BuddyMemoryManager : public MemoryManager {
   public:
-    cudaError_t Malloc(void*& devptr, size_t size, int deviceIdx);
-    cudaError_t Free(void* devptr, int deviceIdx);
-    cudaError_t Memcpy(int deviceIdx, void* dst,
+    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
+    cudaError_t Free(void* devptr, int device_id);
+    cudaError_t Memcpy(int device_id, void* dst,
                        const void* src, size_t count, enum cudaMemcpyKind kind);
-    cudaError_t MemGetInfo(int deviceId, size_t* total, size_t* free);
-    bool TryAllocate(int deviceId, size_t size);
+    cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
+    bool TryAllocate(int device_id, size_t size);
 
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 

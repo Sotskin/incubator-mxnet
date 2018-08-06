@@ -14,12 +14,13 @@ import sys
 
 
 def run_script(args):
+    envs = {val[0]: val[1] for val in (s.split('=') for s in args.envs)}
     if args.model == 'resnet':
         log_name = './log_{}_{}_{}_{}_{}_{}_{}'.format(
                         args.model, args.num_layers, args.batch_size,
-                        args.wide_scale, args.mxnet_swap_algorithm,
-                        args.mxnet_prefetch_algorithm,
-                        args.mxnet_prefetch_steps)
+                        args.wide_scale, envs['MXNET_SWAP_ALGORITHM'],
+                        envs['MXNET_PREFETCH_ALGORITHM'],
+                        envs['MXNET_PREFETCH_STEPS'])
         options = ['--num_gpus={}'.format(args.num_gpus),
                    '--num_loops={}'.format(args.num_loops),
                    '--num_layers={}'.format(args.num_layers),
@@ -32,7 +33,6 @@ def run_script(args):
     else:
         raise NotImplementedError
     options.append(args.model)
-    envs = {arg.upper(): str(getattr(args, arg)) for arg in vars(args)}
     proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             bufsize=1, universal_newlines=True)
@@ -79,8 +79,10 @@ class DumpArguments(argparse.Action):
                 sys.exit(0)
         with open(path, 'w') as fp:
             fp.write(getattr(namespace, 'model') + '\n')
+            fp.write('--envs\n')
+            fp.write('\n'.join(getattr(namespace, 'envs')) + '\n')
             for arg in sorted(vars(namespace)):
-                if arg != 'model' and arg != 'dump':
+                if arg != 'model' and arg != 'dump' and arg != 'envs':
                     val = getattr(namespace, arg)
                     if type(val) == bool:
                         fp.write('--' + ('' if val else 'no') +  arg + '\n')
@@ -97,13 +99,6 @@ def main():
                         help='The model to be tested.')
     parser.add_argument('--dump', type=bool, action=DumpArguments)
     parser.add_argument('--also_print', action='store_true')
-    # Environment settings
-    parser.add_argument('--pythonpath', type=str, default='/home/fegin/',
-                        help='PYTHONPATH')
-    parser.add_argument('--ld_library_path', type=str, default='/usr/local/cuda/lib64',
-                        help='Extra LD_LIBRARY_PATH')
-    parser.add_argument('--cuda_visible_devices', type=int, default=0,
-                        help='CUDA_VISIBLE_DEVICE')
     parser.add_argument('--num_gpus', type=int, default=1,
                         help='Number of GPUs.')
     parser.add_argument('--num_loops', type=int, default=10,
@@ -115,28 +110,29 @@ def main():
                         help='Number of layers (for some models only).')
     parser.add_argument('--wide_scale', type=int, default=1,
                         help='Wide scale (for W-ResNet only).')
-    # Swap settings
-    parser.add_argument('--mxnet_engine_type', type=str, default='NaiveEngine',
-                        help='MXNET_ENGINE_TYPE')
-    parser.add_argument('--mxnet_prefetch_algorithm', type=str,
-                        default='ComputePrefetch',
-                        help='Prefetch look ahead steps.')
-    parser.add_argument('--mxnet_mem_mgr_type', type=str, default='CUDA',
-                        help='The memory manager type for the swapping system.')
-    parser.add_argument('--mxnet_prefetch_steps', type=int, default=30,
-                        help='Prefetch look ahead steps.')
-    parser.add_argument('--mxnet_swap_algorithm', type=str,
-                        default='NaiveHistory',
-                        help='Swap algorithm.')
-
+    # Environment variables settings.
+    # NOTE that if b new environment variable is added, it should also be here.
+    parser.add_argument('--envs', type=str, nargs='+',
+                        help='Environment variables.',
+                        default=['PYTHONPATH=/home/fegin ',
+                                 'LD_LIBRARY_PATH=/usr/local/cuda/lib64 ',
+                                 'CUDA_VISIBLE_DEVICES=0 ',
+                                 'MXNET_ENGINE_TYPE=NaiveEngine ',
+                                 'MXNET_PREFETCH_ALGORITHM=ComputePrefetch ',
+                                 'MXNET_PREFETCH_STEPS=30 ',
+                                 'MXNET_MEM_MGR_TYPE=CUDA ',
+                                 'MXNET_SWAP_ALGORITHM=NaiveHistory ',
+                       ])
     args, _ = parser.parse_known_args()
     print('Arguments: ')
     for arg in sorted(vars(args)):
-        print('    {}: {}'.format(arg, str(getattr(args, arg))))
+        if arg != 'envs':
+            print('    {}: {}'.format(arg, str(getattr(args, arg))))
+        else:
+            print('    envs:')
+            pprint.pprint(getattr(args, arg), indent=8)
 
     run_script(args)
 
 if __name__ == '__main__':
     main()
-
-

@@ -23,7 +23,7 @@
  * \brief graph executor
  */
 #include <mxnet/base.h>
-#include <mxnet/swap.h>
+#include <mxnet/gpu_swap.h>
 #include <nnvm/graph.h>
 #include <nnvm/pass_functions.h>
 #include <vector>

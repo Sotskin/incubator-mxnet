@@ -19,19 +19,21 @@ std::shared_ptr<Swap> Swap::_GetSharedRef() {
 }
 
 Swap::Swap() {
-  std::cout << "Initialize Swap" <<std::endl;
+  std::cout << "Initialize Swap" << std::endl;
   memory_history_ = MemHistory::_GetSharedRef();
-  memory_manager_ = MemoryManager::_GetSharedRef();
+  //memory_manager_ = MemoryManager::_GetSharedRef();
+  memory_manager_ = GetMemoryManagerRef();
   swap_lock_ = PTHREAD_RWLOCK_INITIALIZER;
   for (int i = 0; i < NUMBER_OF_GPU; ++i){
     locks_[i] = PTHREAD_RWLOCK_INITIALIZER;
     free_memory_.push_back(0);
   }
   swap_locked_ = false;
+  std::cout << "Initialize Swap done" << std::endl;
 }
 
 Swap::~Swap() {
-  std::cout << "Destroy Swap" <<std::endl;
+  std::cout << "Destroy Swap" << std::endl;
 }
 
 void Swap::SwapOutLocked(unsigned required_memory, int device_id) {
@@ -42,9 +44,6 @@ void Swap::SwapOutLocked(unsigned required_memory, int device_id) {
 
 // Caller holds swap_lock_
 void Swap::SwapOut(unsigned required_memory, int device_id) {
-  if (memory_manager_->TryAllocate(device_id, required_memory)) {
-    return;
-  }
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
     SwapParams param = {0, required_memory, &divided_handles_[device_id]};
     handle_id_t victim = memory_history_->DecideVictim(swappable_handles_[device_id], device_id,
@@ -54,11 +53,12 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
       CHECK(0);
     }
     SwapInfo *target = swap_info_[victim];
-    //std::cout<<"SwapOut "<<victim<<" "<<target->size<<" "<<target->swap_count<<std::endl;
+    std::cout << "SwapOut " << victim << " " << target->size << " "
+              << target->swap_count << std::endl;
     target->swap_count++;
     memory_history_->num_swap_out++;
     memory_history_->swap_out_total += target->size;
-    if(target->cpu_address == nullptr) {
+    if (target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
     }
 
@@ -117,14 +117,15 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
     return;
   }
   pthread_rwlock_wrlock(&swap_lock_);
-  //std::cout<<"SetAddr "<<handle_id<<std::endl;
+  //std::cout << "SetAddr " << handle_id << std::endl;
   auto iter = swap_info_.find(handle_id);
   if (iter == swap_info_.end()){
     SwapInfo* info = new SwapInfo{handle_id, true, device_id,
       dptr, nullptr, size, 0};
     swap_info_[handle_id] = info;
     // FIXME(Sotskin): Temporaty Fix
-    if (device_id != -1 && size >= 20240){
+    if (device_id != -1 && size >= 20240) {
+    //if (device_id != -1 && size >= 20240  && handle_id != 4341) {
       swappable_handles_[device_id].insert(handle_id);
       divided_handles_[device_id][size].insert(handle_id);
     }
@@ -137,7 +138,7 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id
 
 void Swap::FreeAddr(handle_id_t handle_id) {
   pthread_rwlock_wrlock(&swap_lock_);
-  //std::cout<<"FreeAddr "<<handle_id<<std::endl;
+  //std::cout << "FreeAddr " << handle_id << std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
     memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR, info->size);
@@ -150,10 +151,12 @@ void Swap::FreeAddr(handle_id_t handle_id) {
       divided_handles_[info->device_id][info->size].erase(handle_id);
     }
   }
+  size_t free, total;
+  memory_manager_->MemGetInfo(info->device_id, &total, &free);
   if (info->swapped_in) {
     cudaError_t e = memory_manager_->Free(info->dptr, info->device_id);
     if (e != cudaSuccess && e != cudaErrorCudartUnloading) {
-      LOG(FATAL) << "Free failed: " << cudaGetErrorString(e);
+      LOG(FATAL) << "Failed to free " << handle_id << ": " << cudaGetErrorString(e);
     }
   }
   if (info->cpu_address != nullptr) {
@@ -190,7 +193,7 @@ void Swap::DelAddr(handle_id_t handle_id) {
 // TODO(sotskin) compatibility for MKLMEM
 void* Swap::GetAddr(handle_id_t handle_id, bool prefetch) {
   pthread_rwlock_wrlock(&swap_lock_);
-  //std::cout<<"GetAddr "<<handle_id<<std::endl;
+  //std::cout << "GetAddr: "<< handle_id << std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1 && !prefetch) {
     memory_history_->num_get_addr++;

@@ -3,16 +3,17 @@ Usage:
 Here, we use resnet as an example.
 1. # python3 run.py resnet --dump
     * Modify config_resnet to fit your environment and requirement.
-2. python3 run.py @config_resnet
+2. # python3 run.py @config_resnet
 '''
 import argparse
 import os
 import pprint
-import sys
+import signal
 import subprocess
+import sys
 
 
-def run_script(args, also_print=False):
+def run_script(args):
     if args.model == 'resnet':
         log_name = './log_{}_{}_{}_{}_{}_{}_{}'.format(
                         args.model, args.num_layers, args.batch_size,
@@ -20,6 +21,7 @@ def run_script(args, also_print=False):
                         args.mxnet_prefetch_algorithm,
                         args.mxnet_prefetch_steps)
         options = ['--num_gpus={}'.format(args.num_gpus),
+                   '--num_loops={}'.format(args.num_loops),
                    '--num_layers={}'.format(args.num_layers),
                    '--wide_scale={}'.format(args.wide_scale),
                    '--batch_size={}'.format(args.batch_size)]
@@ -31,22 +33,34 @@ def run_script(args, also_print=False):
         raise NotImplementedError
     options.append(args.model)
     envs = {arg.upper(): str(getattr(args, arg)) for arg in vars(args)}
-    # print(log_name)
-    # print(options)
-    # print(envs)
-    with open(log_name, 'w') as fp:
-        proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                universal_newlines=True)
+    proc = subprocess.Popen(['python', 'benchmark.py'] + options, env=envs,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            bufsize=1, universal_newlines=True)
     with open(log_name, 'w') as fp:
         while True:
             line = proc.stdout.readline()
             if line:
-                if also_print:
+                if args.also_print:
                     print(line, end='')
                 fp.write(line)
             else:
                 break
+        stdout, stderr = proc.communicate()
+        message = 'The program exits with returncode = {}\n'\
+                    .format(proc.returncode)
+        if proc.returncode != 0:
+            name = 'None'
+            for k, v in signal.__dict__.items():
+                if k.startswith('SIG') and not k.startswith('SIG_'):
+                    if getattr(signal, k) == -proc.returncode:
+                        name = k
+                        break
+            if name == 'SIGSEGV':
+                message += 'Segmentation Fault.\n'
+            else:
+                message += name + " : " + str(proc.returncode) + '\n'
+        fp.write(message)
+        print(message)
 
 
 class DumpArguments(argparse.Action):
@@ -65,19 +79,24 @@ class DumpArguments(argparse.Action):
                 sys.exit(0)
         with open(path, 'w') as fp:
             fp.write(getattr(namespace, 'model') + '\n')
-            for arg in vars(namespace):
+            for arg in sorted(vars(namespace)):
                 if arg != 'model' and arg != 'dump':
-                    fp.write('--' + arg + '\n')
-                    fp.write(str(getattr(namespace, arg)) + '\n')
+                    val = getattr(namespace, arg)
+                    if type(val) == bool:
+                        fp.write('--' + ('' if val else 'no') +  arg + '\n')
+                    else:
+                        fp.write('--' + arg + '\n')
+                        fp.write(str(val) + '\n')
         sys.exit(0)
 
-            
+
 def main():
     parser = argparse.ArgumentParser('Benchmark Tests',
                                      fromfile_prefix_chars='@')
     parser.add_argument('model', type=str, default='resnet',
                         help='The model to be tested.')
     parser.add_argument('--dump', type=bool, action=DumpArguments)
+    parser.add_argument('--also_print', action='store_true')
     # Environment settings
     parser.add_argument('--pythonpath', type=str, default='/home/fegin/',
                         help='PYTHONPATH')
@@ -102,6 +121,8 @@ def main():
     parser.add_argument('--mxnet_prefetch_algorithm', type=str,
                         default='ComputePrefetch',
                         help='Prefetch look ahead steps.')
+    parser.add_argument('--mxnet_mem_mgr_type', type=str, default='CUDA',
+                        help='The memory manager type for the swapping system.')
     parser.add_argument('--mxnet_prefetch_steps', type=int, default=30,
                         help='Prefetch look ahead steps.')
     parser.add_argument('--mxnet_swap_algorithm', type=str,

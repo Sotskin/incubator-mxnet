@@ -83,7 +83,7 @@ void Prefetch::StopPrefetching() {
     lookahead_pos_[device] = -1;
   }
 
-  Swap::Get()->PrintHandles();
+  // Swap::Get()->PrintHandles();
   std::cout << "=> total prefetch: " << history_->prefetch_count << std::endl;
   std::cout << "=> cache miss: " << history_->cache_miss << std::endl;
 

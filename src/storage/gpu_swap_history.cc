@@ -263,9 +263,9 @@ void MemHistory::StopIteration() {
   ++iteration_idx_;
   std::cout << "num_get_addr " << num_get_addr << std::endl
     << "num_swap_in: " << num_swap_in << " "
-    << "total: " << swap_in_total << std::endl
+    << "total: " << swap_in_total / 1e9 << "GB " << std::endl
     << "num_swap_out " << num_swap_out << " "
-    << "total: " << swap_out_total << std::endl;
+    << "total: " << swap_out_total / 1e9 << "GB " << std::endl;
 }
 
 } // namespace mxnet

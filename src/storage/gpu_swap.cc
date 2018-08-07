@@ -1,6 +1,3 @@
-#include <iostream>
-#include <map>
-#include <memory>
 #include <mxnet/gpu_swap.h>
 #include <dmlc/logging.h>
 #include <dmlc/parameter.h>
@@ -23,11 +20,15 @@ Swap::Swap() {
   memory_history_ = MemHistory::_GetSharedRef();
   memory_manager_ = GetMemoryManagerRef();
   swap_lock_ = PTHREAD_RWLOCK_INITIALIZER;
-  for (int i = 0; i < NUMBER_OF_GPU; ++i){
+  swap_async_ = dmlc::GetEnv("MXNET_SWAP_ASYNC", true);
+  for (int i = 0; i < NUMBER_OF_GPU; ++i) {
     locks_[i] = PTHREAD_RWLOCK_INITIALIZER;
-    free_memory_.push_back(0);
+    // TODO(fegin): This and other cuda related code should be protected
+    //              by MXNET_USE_CUDA.
+    cudaStreamCreate(&streams_[i]);
   }
   swap_locked_ = false;
+  std::cout << "SWAP_ASYNC=" << swap_async_ << std::endl;
   std::cout << "Initialize Swap done" << std::endl;
 }
 
@@ -35,19 +36,19 @@ Swap::~Swap() {
   std::cout << "Destroy Swap" << std::endl;
 }
 
-void Swap::SwapOutLocked(unsigned required_memory, int device_id) {
+void Swap::SwapOutLocked(unsigned required_memory, int device_id, bool async) {
   pthread_rwlock_wrlock(&swap_lock_);
-  SwapOut(required_memory, device_id);
+  SwapOut(required_memory, device_id, async);
   pthread_rwlock_unlock(&swap_lock_);
 }
 
 // Caller holds swap_lock_
-void Swap::SwapOut(unsigned required_memory, int device_id) {
+void Swap::SwapOut(unsigned required_memory, int device_id, bool async) {
   while (!memory_manager_->TryAllocate(device_id, required_memory)) {
     SwapParams param = {0, required_memory, &divided_handles_[device_id]};
     handle_id_t victim = memory_history_->DecideVictim(
                             swappable_handles_[device_id], device_id, &param);
-    if(swap_info_.find(victim) == swap_info_.end()) {
+    if (swap_info_.find(victim) == swap_info_.end()) {
       std::cout << "Victim does not exist (deleted?)" << std::endl;
       CHECK(0);
     }
@@ -60,47 +61,76 @@ void Swap::SwapOut(unsigned required_memory, int device_id) {
     if (target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
     }
-
     CHECK(target->cpu_address != nullptr);
     CHECK(target->swapped_in);
+    CHECK(!target->is_swapping.test_and_set(std::memory_order_acquire));
     CHECK(target->dptr != nullptr);
     target->swapped_in = false;
     swappable_handles_[device_id].erase(victim);
     divided_handles_[device_id][target->size].erase(victim);
-    //pthread_rwlock_unlock(&swap_lock_);
-    memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr,
-                            target->size, cudaMemcpyDeviceToHost);
+    pthread_rwlock_unlock(&swap_lock_);
+    if (async) {
+      memory_manager_->MemcpyAsync(device_id, target->cpu_address,
+          target->dptr, target->size, cudaMemcpyDeviceToHost,
+          streams_[device_id]);
+      memory_manager_->StreamSynchronize(device_id, streams_[device_id]);
+    } else {
+      memory_manager_->Memcpy(device_id, target->cpu_address, target->dptr,
+          target->size, cudaMemcpyDeviceToHost);
+    }
     memory_manager_->Free(target->dptr, device_id);
-    //pthread_rwlock_wrlock(&swap_lock_);
+    pthread_rwlock_wrlock(&swap_lock_);
+    target->is_swapping.clear(std::memory_order_release);
   }
 }
 
 // Caller holds swap_lock_
-void Swap::SwapIn(SwapInfo *info) {
-  CHECK(!info->swapped_in);
-  CHECK(info->cpu_address != nullptr);
-  //std::cout << "SwapIn "<< info->handle_id << " " << info->size << " "
-  //          << info->swap_count << std::endl;
-  SwapOut(info->size, info->device_id);
-  memory_history_->num_swap_in++;
-  memory_history_->swap_in_total += info->size;
-  memory_manager_->Malloc(info->dptr, info->size, info->device_id);
-  info->swapped_in = true;
-  swappable_handles_[info->device_id].insert(info->handle_id);
-  divided_handles_[info->device_id][info->size].insert(info->handle_id);
-  swap_info_[info->handle_id]->dptr = info->dptr;
-  //pthread_rwlock_unlock(&swap_lock_);
-   memory_manager_->Memcpy(info->device_id, info->dptr, info->cpu_address,
-                           info->size, cudaMemcpyHostToDevice);
-  delete info->cpu_address;
-  info->cpu_address = nullptr;
-  //pthread_rwlock_wrlock(&swap_lock_);
+void Swap::SwapIn(SwapInfo *info, bool async) {
+  while (info->is_swapping.test_and_set(std::memory_order_acquire)) {
+    // TODO(fegin): usleep may not be efficient and may cause unstable
+    //              execution. This is not important for now but can be
+    //              something to imporve in the future. However, this
+    //              must be designed carefully. One mutex per handle is not
+    //              acceptable unlike current atmoic variable design.
+    pthread_rwlock_unlock(&swap_lock_);
+    usleep(10);
+    pthread_rwlock_wrlock(&swap_lock_);
+  }
+  if (!info->swapped_in) {
+    CHECK(!info->swapped_in);
+    CHECK(info->cpu_address != nullptr);
+    //std::cout << "SwapIn "<< info->handle_id << " " << info->size << " "
+    //          << info->swap_count << std::endl;
+    SwapOut(info->size, info->device_id, async);
+    pthread_rwlock_unlock(&swap_lock_);
+    memory_history_->num_swap_in++;
+    memory_history_->swap_in_total += info->size;
+    memory_manager_->Malloc(info->dptr, info->size, info->device_id);
+    if (async) {
+      memory_manager_->MemcpyAsync(info->device_id, info->dptr,
+          info->cpu_address, info->size, cudaMemcpyHostToDevice,
+          streams_[info->device_id]);
+      memory_manager_->StreamSynchronize(info->device_id,
+          streams_[info->device_id]);
+    } else {
+      memory_manager_->Memcpy(info->device_id, info->dptr, info->cpu_address,
+                             info->size, cudaMemcpyHostToDevice);
+    }
+    delete info->cpu_address;
+    info->cpu_address = nullptr;
+    pthread_rwlock_wrlock(&swap_lock_);
+    info->swapped_in = true;
+    swappable_handles_[info->device_id].insert(info->handle_id);
+    divided_handles_[info->device_id][info->size].insert(info->handle_id);
+  }
+  info->is_swapping.clear(std::memory_order_release);
 }
 
 void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size,
                   int device_id) {
-  if (device_id != -1){
-    memory_history_->PutRecord(handle_id, device_id, MemHistory::SET_ADDR, size);
+  if (device_id != -1) {
+    memory_history_->PutRecord(handle_id, device_id, MemHistory::SET_ADDR,
+        size);
   }
   if (dptr == nullptr) {
     return;
@@ -108,9 +138,9 @@ void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size,
   pthread_rwlock_wrlock(&swap_lock_);
   //std::cout << "SetAddr " << handle_id << std::endl;
   auto iter = swap_info_.find(handle_id);
-  if (iter == swap_info_.end()){
+  if (iter == swap_info_.end()) {
     SwapInfo* info = new SwapInfo{handle_id, true, device_id,
-      dptr, nullptr, size, 0};
+      dptr, nullptr, size, 0, ATOMIC_FLAG_INIT};
     swap_info_[handle_id] = info;
     // FIXME(Sotskin): Temporaty Fix
     if (device_id != -1 && size >= 20240) {
@@ -189,9 +219,9 @@ void* Swap::GetAddr(handle_id_t handle_id, bool prefetch) {
                                info->size);
   }
   if (!info->swapped_in) {
-    if(!prefetch)
+    if (!prefetch)
       ++(memory_history_->cache_miss);
-    SwapIn(info);
+    SwapIn(info, swap_async_);
   }
   if (swap_locked_ &&
       swappable_handles_[info->device_id].find(handle_id) !=
@@ -211,13 +241,13 @@ void Swap::LockSwap() {
 }
 
 void Swap::UnlockSwap() {
-  if(swap_locked_ == false) return;
+  if (swap_locked_ == false) return;
   pthread_rwlock_wrlock(&swap_lock_);
   swap_locked_ = false;
   for (int i = 0; i < NUMBER_OF_GPU; ++i) {
     while (!locked_handles_[i].empty()) {
       auto info = swap_info_.find(locked_handles_[i].top());
-      if(info  == swap_info_.end()){
+      if (info  == swap_info_.end()) {
         locked_handles_[i].pop();
         continue;
       } else {
@@ -230,10 +260,10 @@ void Swap::UnlockSwap() {
   pthread_rwlock_unlock(&swap_lock_);
 }
 
-void Swap::PrintHandles(){
+void Swap::PrintHandles() {
   std::cout << "Print Handles" << std::endl;
   //std::map<size_t, std::unordered_set<handle_id_t> > _divided_handles_;
-  for(auto it : swap_info_) {
+  for (auto it : swap_info_) {
     //_divided_handles_[it.second->size].insert(it.first);
     std::cout << it.first << ": " << it.second->size << " "
               << it.second->swap_count << " " << it.second->device_id

@@ -103,7 +103,7 @@ def main():
                         help='Number of GPUs.')
     parser.add_argument('--num_loops', type=int, default=10,
                         help='Number of loops.')
-    # Model settings 
+    # Model settings
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size.')
     parser.add_argument('--num_layers', type=int, default=152,
@@ -119,7 +119,7 @@ def main():
                                  'CUDA_VISIBLE_DEVICES=0 ',
                                  'MXNET_ENGINE_TYPE=NaiveEngine ',
                                  'MXNET_PREFETCH_ALGORITHM=ComputePrefetch ',
-                                 'MXNET_PREFETCH_STEPS=30 ',
+                                 'MXNET_PREFETCH_STEP_AHEAD=30 ',
                                  'MXNET_MEM_MGR_TYPE=CUDA ',
                                  'MXNET_SWAP_ALGORITHM=NaiveHistory ',
                        ])

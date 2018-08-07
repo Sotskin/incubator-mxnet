@@ -55,9 +55,9 @@ private:
   std::shared_ptr<MemoryManager> memory_manager_;
   pthread_rwlock_t swap_lock_;
   pthread_rwlock_t locks_[NUMBER_OF_GPU];
-  cudaStream_t streams_[NUMBER_OF_GPU];
-  bool streams_init_[NUMBER_OF_GPU];
   bool swap_locked_;
+  bool swap_async_;
+  cudaStream_t streams_[NUMBER_OF_GPU];
 }; // Class Swap
 
 } // namespace mxnet

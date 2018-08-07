@@ -20,7 +20,7 @@ def run_script(args):
                         args.model, args.num_layers, args.batch_size,
                         args.wide_scale, envs['MXNET_SWAP_ALGORITHM'],
                         envs['MXNET_PREFETCH_ALGORITHM'],
-                        envs['MXNET_PREFETCH_STEPS'])
+                        envs['MXNET_PREFETCH_STEP_AHEAD'])
         options = ['--num_gpus={}'.format(args.num_gpus),
                    '--num_loops={}'.format(args.num_loops),
                    '--num_layers={}'.format(args.num_layers),
@@ -114,14 +114,15 @@ def main():
     # NOTE that if b new environment variable is added, it should also be here.
     parser.add_argument('--envs', type=str, nargs='+',
                         help='Environment variables.',
-                        default=['PYTHONPATH=/home/fegin ',
-                                 'LD_LIBRARY_PATH=/usr/local/cuda/lib64 ',
-                                 'CUDA_VISIBLE_DEVICES=0 ',
-                                 'MXNET_ENGINE_TYPE=NaiveEngine ',
-                                 'MXNET_PREFETCH_ALGORITHM=ComputePrefetch ',
-                                 'MXNET_PREFETCH_STEP_AHEAD=30 ',
-                                 'MXNET_MEM_MGR_TYPE=CUDA ',
-                                 'MXNET_SWAP_ALGORITHM=NaiveHistory ',
+                        default=['PYTHONPATH=/home/fegin',
+                                 'LD_LIBRARY_PATH=/usr/local/cuda/lib64',
+                                 'CUDA_VISIBLE_DEVICES=0',
+                                 'MXNET_ENGINE_TYPE=NaiveEngine',
+                                 'MXNET_PREFETCH_ALGORITHM=ComputePrefetch',
+                                 'MXNET_PREFETCH_STEP_AHEAD=30',
+                                 'MXNET_MEM_MGR_TYPE=CUDA',
+                                 'MXNET_SWAP_ALGORITHM=NaiveHistory',
+                                 'MXNET_SWAP_ASYNC=1',
                        ])
     args, _ = parser.parse_known_args()
     print('Arguments: ')

@@ -67,7 +67,8 @@ public:
   void PrintRecord(int device);
   void StartIteration();
   void StopIteration();
-  handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device, void* arg);
+  handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device,
+                           void* arg);
   // Logs
   size_t num_swap_in;
   size_t num_swap_out;

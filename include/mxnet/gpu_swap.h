@@ -1,12 +1,14 @@
 #ifndef MXNET_STORAGE_SWAP_H_
 #define MXNET_STORAGE_SWAP_H_
 
-#include <pthread.h>
-#include <unordered_map>
+#include <atomic>
 #include <map>
 #include <memory>
+#include <pthread.h>
 #include <stack>
 #include <string>
+#include <unistd.h>
+#include <unordered_map>
 #include <mxnet/gpu_swap_history.h>
 #include <mxnet/gpu_swap_memmgr.h>
 #if MXNET_USE_CUDA
@@ -23,6 +25,7 @@ struct SwapInfo {
   char* cpu_address;
   size_t size;
   size_t swap_count;
+  std::atomic_flag is_swapping;
 };
 
 class Swap {
@@ -30,9 +33,9 @@ public:
   ~Swap();
   static Swap* Get();
   static std::shared_ptr<Swap> _GetSharedRef();
-  void SwapOut(unsigned required_memory, int device_id);
-  void SwapOutLocked(unsigned required_memory, int device_id);
-  void SwapIn(SwapInfo *info);
+  void SwapOut(unsigned required_memory, int device_id, bool async);
+  void SwapOutLocked(unsigned required_memory, int device_id, bool async);
+  void SwapIn(SwapInfo *info, bool async);
   void SetAddr(handle_id_t handle_id, void* dptr, size_t size, int device_id);
   void DelAddr(handle_id_t handle_id);
   void FreeAddr(handle_id_t handle_id);
@@ -52,6 +55,8 @@ private:
   std::shared_ptr<MemoryManager> memory_manager_;
   pthread_rwlock_t swap_lock_;
   pthread_rwlock_t locks_[NUMBER_OF_GPU];
+  cudaStream_t streams_[NUMBER_OF_GPU];
+  bool streams_init_[NUMBER_OF_GPU];
   bool swap_locked_;
 }; // Class Swap
 

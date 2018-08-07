@@ -77,7 +77,7 @@ bool CudaMemoryManager::TryAllocate(int device_id, size_t size) {
   size_t free, total;
   CUDA_CALL(cudaMemGetInfo(&free, &total));
   // TODO(fegin): This fixed threshold is not acceptable.
-  return free > size + 1000000000;
+  return free > size + 1500000000;
 }
 
 BuddyMemoryManager::BuddyMemoryManager() {

@@ -109,9 +109,9 @@ void Prefetch::PrefetchWhileComputing(int device) {
     lookahead_pos_[device] = history.curr_idx;
   }
   while (lookahead_pos_[device] + 1 < history.ordered_history.size() &&
-      lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
-      lookahead_pos_[device] - history.curr_idx >= 0 &&
-      computing_) {
+         lookahead_pos_[device] >= history.curr_idx &&
+         lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
+         computing_) {
     MemoryHistory::MemRecord r =
         history.ordered_history[++lookahead_pos_[device]];
     if (r.operation_id == MemoryHistory::GET_ADDR) {
@@ -121,7 +121,6 @@ void Prefetch::PrefetchWhileComputing(int device) {
       std::cout << "non-read operation found" << std::endl;
     }
   }
-
 }
 
 // TODO(sotskin): karll: Add algorithm discription
@@ -133,8 +132,8 @@ void Prefetch::HistoryBasedPrefetch(int device) {
     lookahead_pos_[device] = history.curr_idx;
   }
   while (lookahead_pos_[device] + 1 < history.ordered_history.size() &&
-      lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
-      lookahead_pos_[device] - history.curr_idx >= 0 ) {
+         lookahead_pos_[device] >= history.curr_idx &&
+         lookahead_pos_[device] - history.curr_idx < steps_ahead_) {
     MemoryHistory::MemRecord r =
         history.ordered_history[++lookahead_pos_[device]];
     if (r.operation_id == MemoryHistory::GET_ADDR) {

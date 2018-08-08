@@ -43,7 +43,6 @@ public:
   struct DeviceHistory {
     std::map<handle_id_t, std::vector<MemRecord>> handle_history;
     std::vector<MemRecord> ordered_history;
-    // FIXME(fegin): Do we really need seperate variables to do LRU?
     std::list<handle_id_t> lru_list;
     std::unordered_map<handle_id_t, std::list<handle_id_t>::iterator> lru_map;
     size_t curr_idx;

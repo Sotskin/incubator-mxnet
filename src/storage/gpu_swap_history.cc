@@ -118,9 +118,7 @@ handle_id_t MemoryHistory::NaiveHistory(
   SwapParams* params = (SwapParams*)arg;
   size_t latest_step = 0;
   handle_id_t latest_id = 0;
-  size_t loop_count = 0;
   for (auto &id : handles) {
-    loop_count += 1;
     MemoryHistory::MemRecord r = {0, MemoryHistory::GET_ADDR, 0,
                                history.curr_idx, 0};
     auto it = std::upper_bound(history.handle_history[id].begin(),
@@ -134,7 +132,6 @@ handle_id_t MemoryHistory::NaiveHistory(
         continue;
       }
       */
-      std::cout << "loop_count : " << loop_count << std::endl;
       return id;
     } else if (it->record_step - history.curr_idx < params->no_swap_steps) {
       continue;
@@ -143,7 +140,6 @@ handle_id_t MemoryHistory::NaiveHistory(
       latest_id = id;
     }
   }
-  std::cout << "loop_count : " << loop_count << std::endl;
   return latest_id;
 }
 

@@ -12,8 +12,6 @@ namespace mxnet {
 
 class Prefetch {
 public:
-
-
   ~Prefetch();
   static Prefetch* Get();
   static std::shared_ptr<Prefetch> _GetSharedRef();
@@ -24,9 +22,12 @@ public:
   bool IsPrefetching() {return start_prefetching_;}
 
 private:
-
   Prefetch();
   void Prefetching(int device);
+  void (Prefetch::*DoPrefetch)(int);
+  // Prefetch algorithm declarations
+  void HistoryBasedPrefetch(int device);
+  void PrefetchWhileComputing(int device);
 
   bool computing_;
   std::vector<size_t> lookahead_pos_;
@@ -36,12 +37,6 @@ private:
   bool stop_prefetching_;
   std::string prefetch_algorithm_;
   size_t steps_ahead_;
-  
-  void (Prefetch::*DoPrefetch)(int);
-  // Prefetch algorithm declarations
-  void HistoryBasedPrefetch(int device);
-  void PrefetchWhileComputing(int device);
-  
 }; // class prefetch
 
 } // namespace mxnet

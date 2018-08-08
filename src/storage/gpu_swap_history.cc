@@ -45,44 +45,44 @@ MemoryHistory* MemoryHistory::Get() {
   return s;
 }
 
-void MemoryHistory::PreRecord(handle_id_t id, record_t op,
-                           DeviceHistory& history) {
+void MemoryHistory::PreRecord(handle_id_t handle_id, record_t op,
+                              DeviceHistory& history) {
   if (op == MemoryHistory::SET_ADDR) {
-    history.lru_list.push_front(id);
-    history.lru_map[id] = history.lru_list.begin();
+    history.lru_list.push_front(handle_id);
+    history.lru_map[handle_id] = history.lru_list.begin();
   } else if (op == MemoryHistory::GET_ADDR) {
-    if (history.lru_map[id] == history.lru_list.end()) {
-      history.lru_list.push_front(id);
-      history.lru_map[id] = history.lru_list.begin();
+    if (history.lru_map[handle_id] == history.lru_list.end()) {
+      history.lru_list.push_front(handle_id);
+      history.lru_map[handle_id] = history.lru_list.begin();
     } else {
-      std::list<handle_id_t>::iterator hid = history.lru_map[id];
+      std::list<handle_id_t>::iterator hid = history.lru_map[handle_id];
       history.lru_list.erase(hid);
-      history.lru_list.push_front(id);
-      history.lru_map[id] = history.lru_list.begin();
+      history.lru_list.push_front(handle_id);
+      history.lru_map[handle_id] = history.lru_list.begin();
     }
   } else {
-    std::list<handle_id_t>::iterator hid = history.lru_map[id];
+    std::list<handle_id_t>::iterator hid = history.lru_map[handle_id];
     history.lru_list.erase(hid);
-    history.lru_map.erase(id);
+    history.lru_map.erase(handle_id);
   }
 }
 
 void MemoryHistory::PutRecord(handle_id_t handle_id, int device,
-                           record_t operation_id, size_t size) {
+                              record_t op, size_t size) {
   if (!IterationStarted()) {
     return;
   }
   auto& history = dev_history_[device];
   if (IsPreRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
-    MemoryHistory::PreRecord(handle_id, operation_id, history);
+    MemoryHistory::PreRecord(handle_id, op, history);
   }
   if (IsRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
     timestamp_t t = (duration_cast<microseconds>
         (high_resolution_clock::now() - begin_time_)).count();
     size_t record_step = history.curr_idx;
-    MemRecord record = {handle_id, operation_id, t, record_step, size};
+    MemRecord record = {handle_id, op, t, record_step, size};
     history.handle_history[handle_id].push_back(record);
     history.ordered_history.push_back(record);
   }

@@ -29,13 +29,13 @@ private:
   void Prefetching(int device);
 
   bool computing_;
-  std::vector<int> lookahead_pos_;
+  std::vector<size_t> lookahead_pos_;
   std::vector<std::thread> prefetcher_;
   std::shared_ptr<MemHistory> history_;
   bool start_prefetching_;
   bool stop_prefetching_;
   std::string prefetch_algorithm_;
-  int steps_ahead_;
+  size_t steps_ahead_;
   
   void (Prefetch::*DoPrefetch)(int);
   // Prefetch algorithm declarations

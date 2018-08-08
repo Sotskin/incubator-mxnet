@@ -55,12 +55,12 @@ class BuddyMemoryManager : public MemoryManager {
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 
   private:
+    BuddyMemoryManager();
+    ~BuddyMemoryManager();
+
     BuddySystem** buddy_;
     std::mutex mutex_;
     int deviceCount_;
-
-    BuddyMemoryManager();
-    ~BuddyMemoryManager();
 }; // Class BuddyMemoryManager
 
 std::shared_ptr<MemoryManager> GetMemoryManagerRef();

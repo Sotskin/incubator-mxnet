@@ -107,13 +107,13 @@ int MXNotifyShutdown() {
 
 int MXStartIteration() {
   API_BEGIN();
-  MemHistory::Get()->StartIteration();
+  MemoryHistory::Get()->StartIteration();
   API_END();
 }
 
 int MXStopIteration() {
   API_BEGIN();
-  MemHistory::Get()->StopIteration();
+  MemoryHistory::Get()->StopIteration();
   API_END();
 }
 

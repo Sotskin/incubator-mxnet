@@ -30,9 +30,8 @@ struct SwapParams {
   std::map<size_t, std::unordered_set<handle_id_t> >* divided_handles;
 };
 
-class MemHistory {
+class MemoryHistory {
 public:
-
   enum record_t {GET_ADDR, SET_ADDR, DEL_ADDR};
   struct MemRecord {
     handle_id_t handle_id;
@@ -41,51 +40,45 @@ public:
     size_t record_step;
     size_t size;
   };
+  struct DeviceHistory {
+    std::map<handle_id_t, std::vector<MemRecord>> handle_history;
+    std::vector<MemRecord> ordered_history;
+    std::list<handle_id_t> lru_list;
+    std::unordered_map<handle_id_t, std::list<handle_id_t>::iterator> lru_map;
+    size_t curr_idx;
+    // Statistics
+    size_t prefetch_count;
+    size_t cache_miss;
+    size_t num_swap_in;
+    size_t num_swap_out;
+    size_t swap_in_total;
+    size_t swap_out_total;
+    size_t num_get_addr;
+  };
+
+  ~MemoryHistory();
   static bool CompareByStep(const MemRecord &r1, const MemRecord &r2) {
     return r1.record_step < r2.record_step;
   }
-
-  unsigned prefetch_count;
-  unsigned cache_miss;
-
-  std::vector<std::map<handle_id_t, std::vector<MemRecord> > > history;
-  std::vector<std::vector<MemRecord> > ordered_history;
-  std::vector<std::list<handle_id_t> > lru_list;
-  std::vector<std::unordered_map<handle_id_t, std::list<handle_id_t>::iterator> >
-      lru_map;
-  std::vector<size_t> record_idx;
-
-  ~MemHistory();
-  static MemHistory* Get();
-  static std::shared_ptr<MemHistory> _GetSharedRef();
+  static MemoryHistory* Get();
+  static std::shared_ptr<MemoryHistory> _GetSharedRef();
   bool IterationStarted() {return iteration_started_;}
   bool IsPreRecording() {return pre_recording_;}
   bool IsRecording() {return is_recording_;}
+  DeviceHistory& DevHistory(int device) {return dev_history_[device];}
   size_t GetIterationIdx() {return iteration_idx_;}
-  void PreRecord(handle_id_t handle_id, record_t operation_id, int device);
-  void PutRecord(handle_id_t handle_id, int device, record_t type, size_t size);
+  void PreRecord(handle_id_t handle_id, record_t op, DeviceHistory& history);
+  void PutRecord(handle_id_t handle_id, int device, record_t op, size_t size);
   void PrintRecord(int device);
   void StartIteration();
   void StopIteration();
   handle_id_t DecideVictim(std::unordered_set<handle_id_t> handles, int device,
                            void* arg);
-  // Logs
-  size_t num_swap_in;
-  size_t num_swap_out;
-  size_t swap_in_total;
-  size_t swap_out_total;
-  size_t num_get_addr;
 
 private:
-  MemHistory();
-  bool iteration_started_;
-  bool is_recording_;
-  bool pre_recording_;
-  size_t iteration_idx_;
-  std::string swap_algorithm_;
-  high_resolution_clock::time_point begin_time_;
+  MemoryHistory();
   std::vector<std::mutex> mutex_ = std::vector<std::mutex>(NUMBER_OF_GPU);
-  handle_id_t (MemHistory::*DoDecide)(std::unordered_set<handle_id_t>, int, void*);
+  handle_id_t (MemoryHistory::*DoDecide)(std::unordered_set<handle_id_t>, int, void*);
   // Swap algorithm declaration
   handle_id_t LRU(std::unordered_set<handle_id_t> handles, int device, void* arg);
   handle_id_t NaiveHistory(std::unordered_set<handle_id_t> handles, int device,
@@ -93,8 +86,14 @@ private:
   handle_id_t SizeHistory(std::unordered_set<handle_id_t> handles, int device,
       void* arg);
 
-
-};  // class MemHistory
+  std::vector<DeviceHistory> dev_history_;
+  bool iteration_started_;
+  bool is_recording_;
+  bool pre_recording_;
+  size_t iteration_idx_;
+  std::string swap_algorithm_;
+  high_resolution_clock::time_point begin_time_;
+};  // class MemoryHistory
 
 } // namespace mxnet
 

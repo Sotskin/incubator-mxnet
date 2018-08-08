@@ -31,7 +31,7 @@ private:
   bool computing_;
   std::vector<size_t> lookahead_pos_;
   std::vector<std::thread> prefetcher_;
-  std::shared_ptr<MemHistory> history_;
+  std::shared_ptr<MemoryHistory> history_;
   bool start_prefetching_;
   bool stop_prefetching_;
   std::string prefetch_algorithm_;

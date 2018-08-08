@@ -19,7 +19,7 @@ Prefetch::Prefetch() {
   prefetch_algorithm_ = dmlc::GetEnv("MXNET_PREFETCH_ALGORITHM",
                                       std::string("NaiveHistory"));
   steps_ahead_ = dmlc::GetEnv("MXNET_PREFETCH_STEP_AHEAD", 100);
-  history_ = MemHistory::_GetSharedRef();
+  history_ = MemoryHistory::_GetSharedRef();
   lookahead_pos_.resize(NUMBER_OF_GPU);
   prefetcher_.resize(NUMBER_OF_GPU);
   for (int i = 0; i < NUMBER_OF_GPU; i++) {
@@ -66,10 +66,9 @@ void Prefetch::SignalStopComputing() {
 void Prefetch::StartPrefetching() {
   start_prefetching_ = false;
   stop_prefetching_ = false;
-  history_->prefetch_count = 0;
-  history_->cache_miss = 0;
-  if (DoPrefetch == nullptr)
+  if (DoPrefetch == nullptr) {
     return;
+  }
   for (int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device] = std::thread(&Prefetch::Prefetching, this, device);
   }
@@ -82,11 +81,7 @@ void Prefetch::StopPrefetching() {
     prefetcher_[device].join();
     lookahead_pos_[device] = -1;
   }
-
   // Swap::Get()->PrintHandles();
-  std::cout << "=> total prefetch: " << history_->prefetch_count << std::endl;
-  std::cout << "=> cache miss: " << history_->cache_miss << std::endl;
-
 }
 
 
@@ -117,10 +112,10 @@ void Prefetch::PrefetchWhileComputing(int device) {
       lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
       lookahead_pos_[device] - history.curr_idx >= 0 &&
       computing_) {
-    MemHistory::MemRecord r =
+    MemoryHistory::MemRecord r =
         history.ordered_history[++lookahead_pos_[device]];
-    if (r.operation_id == MemHistory::GET_ADDR) {
-      ++(history_->prefetch_count);
+    if (r.operation_id == MemoryHistory::GET_ADDR) {
+      ++history.prefetch_count;
       Swap::Get()->GetAddr(r.handle_id, true);
     } else {
       std::cout << "non-read operation found" << std::endl;
@@ -140,10 +135,10 @@ void Prefetch::HistoryBasedPrefetch(int device) {
   while (lookahead_pos_[device]+1 < history.ordered_history.size() &&
       lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
       lookahead_pos_[device] - history.curr_idx >= 0 ) {
-    MemHistory::MemRecord r =
+    MemoryHistory::MemRecord r =
         history.ordered_history[++lookahead_pos_[device]];
-    if (r.operation_id == MemHistory::GET_ADDR) {
-      ++(history_->prefetch_count);
+    if (r.operation_id == MemoryHistory::GET_ADDR) {
+      ++history.prefetch_count;
       Swap::Get()->GetAddr(r.handle_id, true);
     } else {
       std::cout << "non-read operation found" << std::endl;

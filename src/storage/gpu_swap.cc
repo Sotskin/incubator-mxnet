@@ -17,7 +17,7 @@ std::shared_ptr<Swap> Swap::_GetSharedRef() {
 
 Swap::Swap() {
   std::cout << "Initialize Swap" << std::endl;
-  memory_history_ = MemHistory::_GetSharedRef();
+  memory_history_ = MemoryHistory::_GetSharedRef();
   memory_manager_ = GetMemoryManagerRef();
   swap_lock_ = PTHREAD_RWLOCK_INITIALIZER;
   swap_async_ = dmlc::GetEnv("MXNET_SWAP_ASYNC", true);
@@ -56,8 +56,8 @@ void Swap::SwapOut(unsigned required_memory, int device_id, bool async) {
     //std::cout << "SwapOut " << victim << " " << target->size << " "
               //<< target->swap_count << std::endl;
     target->swap_count++;
-    memory_history_->num_swap_out++;
-    memory_history_->swap_out_total += target->size;
+    memory_history_->DevHistory(device_id).num_swap_out++;
+    memory_history_->DevHistory(device_id).swap_out_total += target->size;
     if (target->cpu_address == nullptr) {
       target->cpu_address = new char[int(target->size)];
     }
@@ -103,8 +103,8 @@ void Swap::SwapIn(SwapInfo *info, bool async) {
     //          << info->swap_count << std::endl;
     SwapOut(info->size, info->device_id, async);
     pthread_rwlock_unlock(&swap_lock_);
-    memory_history_->num_swap_in++;
-    memory_history_->swap_in_total += info->size;
+    memory_history_->DevHistory(info->device_id).num_swap_in++;
+    memory_history_->DevHistory(info->device_id).swap_in_total += info->size;
     memory_manager_->Malloc(info->dptr, info->size, info->device_id);
     if (async) {
       memory_manager_->MemcpyAsync(info->device_id, info->dptr,
@@ -129,8 +129,8 @@ void Swap::SwapIn(SwapInfo *info, bool async) {
 void Swap::SetAddr(handle_id_t handle_id, void* dptr, size_t size,
                   int device_id) {
   if (device_id != -1) {
-    memory_history_->PutRecord(handle_id, device_id, MemHistory::SET_ADDR,
-        size);
+    memory_history_->PutRecord(handle_id, device_id, MemoryHistory::SET_ADDR,
+                               size);
   }
   if (dptr == nullptr) {
     return;
@@ -160,7 +160,7 @@ void Swap::FreeAddr(handle_id_t handle_id) {
   //std::cout << "FreeAddr " << handle_id << std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
-    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR,
+    memory_history_->PutRecord(handle_id, info->device_id, MemoryHistory::DEL_ADDR,
                                info->size);
     if (swappable_handles_[info->device_id].find(handle_id)
         != swappable_handles_[info->device_id].end()) {
@@ -189,7 +189,7 @@ void Swap::DelAddr(handle_id_t handle_id) {
   //std::cout << "DelAddr " << handle_id << std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1) {
-    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::DEL_ADDR,
+    memory_history_->PutRecord(handle_id, info->device_id, MemoryHistory::DEL_ADDR,
                                info->size);
     if (swappable_handles_[info->device_id].find(handle_id)
         != swappable_handles_[info->device_id].end()) {
@@ -214,13 +214,14 @@ void* Swap::GetAddr(handle_id_t handle_id, bool prefetch) {
   //std::cout << "GetAddr: "<< handle_id << std::endl;
   auto info = swap_info_.at(handle_id);
   if (info->device_id != -1 && !prefetch) {
-    memory_history_->num_get_addr++;
-    memory_history_->PutRecord(handle_id, info->device_id, MemHistory::GET_ADDR,
+    memory_history_->DevHistory(info->device_id).num_get_addr++;
+    memory_history_->PutRecord(handle_id, info->device_id, MemoryHistory::GET_ADDR,
                                info->size);
   }
   if (!info->swapped_in) {
-    if (!prefetch)
-      ++(memory_history_->cache_miss);
+    if (!prefetch) {
+      ++(memory_history_->DevHistory(info->device_id).cache_miss);
+    }
     SwapIn(info, swap_async_);
   }
   if (swap_locked_ &&

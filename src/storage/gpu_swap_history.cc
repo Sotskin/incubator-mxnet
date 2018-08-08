@@ -13,7 +13,7 @@
 
 namespace mxnet {
 
-MemHistory::MemHistory() {
+MemoryHistory::MemoryHistory() {
   iteration_started_ = false;
   is_recording_ = false;
   pre_recording_ = false;
@@ -22,35 +22,35 @@ MemHistory::MemHistory() {
   dev_history_.resize(NUMBER_OF_GPU);
   std::cout << "Swap Algorithm: " << swap_algorithm_ << std::endl;
   if (swap_algorithm_ == "LRU") {
-    DoDecide = &MemHistory::LRU;
+    DoDecide = &MemoryHistory::LRU;
   } else if (swap_algorithm_ == "NaiveHistory") {
-    DoDecide = &MemHistory::NaiveHistory;
+    DoDecide = &MemoryHistory::NaiveHistory;
   } else if (swap_algorithm_ == "SizeHistory") {
-    DoDecide = &MemHistory::SizeHistory;
+    DoDecide = &MemoryHistory::SizeHistory;
   } else {
     std::cout << "Unknown Algorithm Name: " << swap_algorithm_ << std::endl;
     CHECK(0);
   }
 }
 
-MemHistory::~MemHistory() {}
+MemoryHistory::~MemoryHistory() {}
 
-std::shared_ptr<MemHistory> MemHistory::_GetSharedRef() {
-  static std::shared_ptr<MemHistory> inst(new MemHistory());
+std::shared_ptr<MemoryHistory> MemoryHistory::_GetSharedRef() {
+  static std::shared_ptr<MemoryHistory> inst(new MemoryHistory());
   return inst;
 }
 
-MemHistory* MemHistory::Get() {
-  static MemHistory *s = _GetSharedRef().get();
+MemoryHistory* MemoryHistory::Get() {
+  static MemoryHistory *s = _GetSharedRef().get();
   return s;
 }
 
-void MemHistory::PreRecord(handle_id_t id, record_t op,
+void MemoryHistory::PreRecord(handle_id_t id, record_t op,
                            DeviceHistory& history) {
-  if (op == MemHistory::SET_ADDR) {
+  if (op == MemoryHistory::SET_ADDR) {
     history.lru_list.push_front(id);
     history.lru_map[id] = history.lru_list.begin();
-  } else if (op == MemHistory::GET_ADDR) {
+  } else if (op == MemoryHistory::GET_ADDR) {
     if (history.lru_map[id] == history.lru_list.end()) {
       history.lru_list.push_front(id);
       history.lru_map[id] = history.lru_list.begin();
@@ -67,7 +67,7 @@ void MemHistory::PreRecord(handle_id_t id, record_t op,
   }
 }
 
-void MemHistory::PutRecord(handle_id_t handle_id, int device,
+void MemoryHistory::PutRecord(handle_id_t handle_id, int device,
                            record_t operation_id, size_t size) {
   if (!IterationStarted()) {
     return;
@@ -75,7 +75,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
   auto& history = dev_history_[device];
   if (IsPreRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
-    MemHistory::PreRecord(handle_id, operation_id, history);
+    MemoryHistory::PreRecord(handle_id, operation_id, history);
   }
   if (IsRecording()) {
     std::lock_guard<std::mutex> lock(mutex_[device]);
@@ -90,7 +90,7 @@ void MemHistory::PutRecord(handle_id_t handle_id, int device,
 }
 
 // LRU: Swapout the least recently used handle
-handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device, void* arg) {
+handle_id_t MemoryHistory::LRU(std::unordered_set<handle_id_t> handles, int device, void* arg) {
   auto& history = dev_history_[device];
   handle_id_t victim = -1;
   while (history.lru_list.size() != 0 &&
@@ -112,7 +112,7 @@ handle_id_t MemHistory::LRU(std::unordered_set<handle_id_t> handles, int device,
 
 // NaiveHistory: assume iterations remain the same; choose the handle
 // whose next reference is furthest in the future as victim.
-handle_id_t MemHistory::NaiveHistory(
+handle_id_t MemoryHistory::NaiveHistory(
   std::unordered_set<handle_id_t> handles, int device, void* arg) {
   auto& history = dev_history_[device];
   SwapParams* params = (SwapParams*)arg;
@@ -121,7 +121,7 @@ handle_id_t MemHistory::NaiveHistory(
   size_t loop_count = 0;
   for (auto &id : handles) {
     loop_count += 1;
-    MemHistory::MemRecord r = {0, MemHistory::GET_ADDR, 0,
+    MemoryHistory::MemRecord r = {0, MemoryHistory::GET_ADDR, 0,
                                history.curr_idx, 0};
     auto it = std::upper_bound(history.handle_history[id].begin(),
                                history.handle_history[id].end(), r,
@@ -147,7 +147,7 @@ handle_id_t MemHistory::NaiveHistory(
   return latest_id;
 }
 
-handle_id_t MemHistory::SizeHistory(
+handle_id_t MemoryHistory::SizeHistory(
     std::unordered_set<handle_id_t> handles, int device, void* arg) {
   auto divided_handles  = ((SwapParams*)arg)->divided_handles;
   auto candidates = divided_handles->lower_bound(((SwapParams*)arg)->required_memory);
@@ -190,17 +190,17 @@ handle_id_t MemHistory::SizeHistory(
   return 0;
 }
 
-handle_id_t MemHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device,
+handle_id_t MemoryHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device,
                                      void* arg) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ <= 2) {
-    return MemHistory::LRU(handles, device, nullptr);
+    return MemoryHistory::LRU(handles, device, nullptr);
   } else {
     return (this->*DoDecide)(handles, device, arg);
   }
 }
 
-void MemHistory::PrintRecord(int device) {
+void MemoryHistory::PrintRecord(int device) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   auto& history = dev_history_[device];
   std::ofstream fp;
@@ -213,19 +213,20 @@ void MemHistory::PrintRecord(int device) {
       records.push_back(it->second[i]);
     }
   }
-  std::sort(records.begin(), records.end(), MemHistory::CompareByStep);
+  std::sort(records.begin(), records.end(), MemoryHistory::CompareByStep);
   for (size_t i = 0; i < records.size(); i++) {
     MemRecord r = records[i];
     fp << "No." << i << std::endl;
     fp << "Step: " << r.record_step << std::endl;
     fp << "Handle ID: " << r.handle_id << std::endl;
     fp << "Operation: ";
-    if (r.operation_id == GET_ADDR)
+    if (r.operation_id == GET_ADDR) {
       fp << "get";
-    else if (r.operation_id == SET_ADDR)
+    } else if (r.operation_id == SET_ADDR) {
       fp << "set";
-    else
+    } else {
       fp << "del";
+    }
     fp << std::endl;
     fp << "Time: " << r.time << std::endl;
     fp << "Size: " << r.size << std::endl;
@@ -234,7 +235,7 @@ void MemHistory::PrintRecord(int device) {
   fp.close();
 }
 
-void MemHistory::StartIteration() {
+void MemoryHistory::StartIteration() {
   iteration_started_ = true;
   for (int i = 0; i < NUMBER_OF_GPU; i++) {
     dev_history_[i].curr_idx = 0;
@@ -251,14 +252,18 @@ void MemHistory::StartIteration() {
   }
   begin_time_ = high_resolution_clock::now();
   // Log variables
-  num_swap_in = 0;
-  num_swap_out = 0;
-  swap_in_total = 0;
-  swap_out_total = 0;
-  num_get_addr = 0;
+  for (int device = 0; device < NUMBER_OF_GPU; device++) {
+    dev_history_[device].prefetch_count = 0;
+    dev_history_[device].cache_miss = 0;
+    dev_history_[device].num_swap_in = 0;
+    dev_history_[device].num_swap_out = 0;
+    dev_history_[device].swap_in_total = 0;
+    dev_history_[device].swap_out_total = 0;
+    dev_history_[device].num_get_addr = 0;
+  }
 }
 
-void MemHistory::StopIteration() {
+void MemoryHistory::StopIteration() {
   pre_recording_ = false;
   is_recording_ = false;
   iteration_started_ = false;
@@ -266,11 +271,24 @@ void MemHistory::StopIteration() {
     Prefetch::Get()->StopPrefetching();
   }
   ++iteration_idx_;
-  std::cout << "num_get_addr " << num_get_addr << std::endl
-    << "num_swap_in: " << num_swap_in << " "
-    << "total: " << swap_in_total / 1e9 << "GB " << std::endl
-    << "num_swap_out " << num_swap_out << " "
-    << "total: " << swap_out_total / 1e9 << "GB " << std::endl;
+  for (int device = 0; device < NUMBER_OF_GPU; device++) {
+    auto& history = dev_history_[device];
+    std::cout << "GPU" << device << " statistics:" << std::endl
+              << "=> Number of prefetch: "
+              << history.prefetch_count << std::endl
+              << "=> Number of cache miss: "
+              << history.cache_miss << std::endl
+              << "=> Number of getaddr: "
+              << history.num_get_addr << std::endl
+              << "=> Number of swap in: "
+              << history.num_swap_in << std::endl
+              << "=> Total swap in size: "
+              << history.swap_in_total / 1e9 << "GB " << std::endl
+              << "=> Number of swap out: "
+              << history.num_swap_out << std::endl
+              << "=> Total swap out size: "
+              << history.swap_out_total / 1e9 << "GB " << std::endl;
+  }
 }
 
 } // namespace mxnet

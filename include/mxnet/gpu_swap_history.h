@@ -41,7 +41,7 @@ public:
     size_t size;
   };
   struct DeviceHistory {
-    static const size_t kMaxPreservedIteration = 30;
+    static const size_t kMaxPreservedIteration = 10;
     std::list<std::map<handle_id_t, std::vector<MemRecord>>> all_handle_history;
     std::map<handle_id_t, std::vector<MemRecord>> *handle_history;
     std::list<std::vector<MemRecord>> all_ordered_history;
@@ -58,7 +58,7 @@ public:
     size_t swap_out_total;
     size_t num_get_addr;
   };
-  static const size_t kBeginRecordAt = 4;
+  static const size_t kBeginRecordAt = 3;
 
   ~MemoryHistory();
   static bool CompareByStep(const MemRecord &r1, const MemRecord &r2) {

@@ -1,9 +1,10 @@
-#include <iostream>
-#include <fstream>
-#include <unistd.h>
 #include <algorithm>
-#include <unordered_set>
+#include <cmath>
+#include <fstream>
+#include <iostream>
 #include <list>
+#include <unistd.h>
+#include <unordered_set>
 #include <vector>
 #include <set>
 #include <dmlc/parameter.h>
@@ -19,6 +20,7 @@ MemoryHistory::MemoryHistory() {
   pre_recording_ = false;
   iteration_idx_ = 0;
   swap_algorithm_ = dmlc::GetEnv("MXNET_SWAP_ALGORITHM", std::string("LRU"));
+  adaptive_history_ = dmlc::GetEnv("MXNET_ADAPTIVE_HISTORY", false);
   dev_history_.resize(NUMBER_OF_GPU);
   std::cout << "Swap Algorithm: " << swap_algorithm_ << std::endl;
   if (swap_algorithm_ == "LRU") {
@@ -83,8 +85,8 @@ void MemoryHistory::PutRecord(handle_id_t handle_id, int device,
         (high_resolution_clock::now() - begin_time_)).count();
     size_t record_step = history.curr_idx;
     MemRecord record = {handle_id, op, t, record_step, size};
-    history.handle_history[handle_id].push_back(record);
-    history.ordered_history.push_back(record);
+    (*history.handle_history_recording)[handle_id].push_back(record);
+    history.ordered_history_recording->push_back(record);
   }
   history.curr_idx++;
 }
@@ -121,13 +123,13 @@ handle_id_t MemoryHistory::NaiveHistory(
   for (auto &id : handles) {
     MemoryHistory::MemRecord r = {0, MemoryHistory::GET_ADDR, 0,
                                history.curr_idx, 0};
-    auto it = std::upper_bound(history.handle_history[id].begin(),
-                               history.handle_history[id].end(), r,
+    auto it = std::upper_bound(history.handle_history->at(id).begin(),
+                               history.handle_history->at(id).end(), r,
                                CompareByStep);
-    if (it == history.handle_history[id].end()) {
+    if (it == history.handle_history->at(id).end()) {
       /*
-      if (it != history.handle_history[id].begin() &&
-          history.curr_idx - history.handle_history[id].back().record_step < 10) {
+      if (it != history.handle_history->at(id).begin() &&
+          history.curr_idx - history.handle_history->at(id).back().record_step < 10) {
         // Victim just used, skip
         continue;
       }
@@ -189,7 +191,7 @@ handle_id_t MemoryHistory::SizeHistory(
 handle_id_t MemoryHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device,
                                      void* arg) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
-  if (iteration_idx_ <= 2) {
+  if (iteration_idx_ <= kBeginRecordAt) {
     return MemoryHistory::LRU(handles, device, nullptr);
   } else {
     return (this->*DoDecide)(handles, device, arg);
@@ -203,8 +205,8 @@ void MemoryHistory::PrintRecord(int device) {
   fp.open("history_log.txt");
   std::vector<MemRecord> records;
   std::map<handle_id_t, std::vector<MemRecord> >::iterator it;
-  for (it = history.handle_history.begin();
-       it != history.handle_history.end(); ++it) {
+  for (it = history.handle_history->begin();
+       it != history.handle_history->end(); ++it) {
     for (size_t i = 0; i < (it->second).size(); i++) {
       records.push_back(it->second[i]);
     }
@@ -236,18 +238,49 @@ void MemoryHistory::StartIteration() {
   for (int i = 0; i < NUMBER_OF_GPU; i++) {
     dev_history_[i].curr_idx = 0;
   }
-  if (iteration_idx_ <= 2 || swap_algorithm_ == "LRU") {
+  // LRU needs to record every iteration. As a result, it is mandatory to do LRU
+  // recording even at kBeginRecordAt iteration because the desired swapping
+  // algorithm will kick in from (kBeginRecordAt + 1) iteration.
+  if (iteration_idx_ <= kBeginRecordAt || swap_algorithm_ == "LRU") {
     pre_recording_ = true;
   }
-  if (iteration_idx_ == 2) {
+  if ((adaptive_history_ && iteration_idx_ >= kBeginRecordAt) ||
+      iteration_idx_ == kBeginRecordAt) {
+    // Each history is stored in a cyclic list (mimiced by std::list).
+    // The LAST history in a cyclic list is used to be recorded in current
+    // iteration. The (LAST-1) history is used by DoDecide(). However, if
+    // adaptive_history_ is false, The LAST history is used by DoDecide().
+    for (int i = 0; i < NUMBER_OF_GPU; i++) {
+      auto& history = dev_history_[i];
+      std::map<handle_id_t, std::vector<MemRecord>> *handle_history;
+      std::vector<MemRecord> *ordered_history;
+      if (history.all_ordered_history.size() ==
+          DeviceHistory::kMaxPreservedIteration) {
+        ordered_history = history.all_ordered_history.front();
+        ordered_history->clear();
+        history.all_ordered_history.pop_front();
+        handle_history  = history.all_handle_history.front();
+        handle_history->clear();
+        history.all_handle_history.pop_front();
+      } else {
+        ordered_history = new std::vector<MemRecord>();
+        handle_history = new std::map<handle_id_t, std::vector<MemRecord>>();
+      }
+      history.all_ordered_history.push_back(ordered_history);
+      history.all_handle_history.push_back(handle_history);
+      int valid_record_ridx = (history.all_ordered_history.size() > 1) ? 2 : 1;
+      history.ordered_history =
+        *(std::prev(history.all_ordered_history.end(), valid_record_ridx));
+      history.handle_history =
+        *(std::prev(history.all_handle_history.end(), valid_record_ridx));
+      history.ordered_history_recording =
+        *(std::prev(history.all_ordered_history.end(), 1));
+      history.handle_history_recording =
+        *(std::prev(history.all_handle_history.end(), 1));
+    }
     is_recording_ = true;
-  } else if (iteration_idx_ > 2) {
-    Prefetch::Get()->StartPrefetching();
-    //while (!Prefetch::Get()->IsPrefetching())
-    //  usleep(1);
   }
   begin_time_ = high_resolution_clock::now();
-  // Log variables
   for (int device = 0; device < NUMBER_OF_GPU; device++) {
     dev_history_[device].prefetch_count = 0;
     dev_history_[device].cache_miss = 0;
@@ -256,6 +289,12 @@ void MemoryHistory::StartIteration() {
     dev_history_[device].swap_in_total = 0;
     dev_history_[device].swap_out_total = 0;
     dev_history_[device].num_get_addr = 0;
+  }
+
+  // We can't start the prefetching too early, otherwise, the prefetch_count
+  // may be incorrect.
+  if (iteration_idx_ > kBeginRecordAt) {
+    Prefetch::Get()->StartPrefetching();
   }
 }
 
@@ -267,6 +306,19 @@ void MemoryHistory::StopIteration() {
     Prefetch::Get()->StopPrefetching();
   }
   ++iteration_idx_;
+  //for (int device = 0; device < NUMBER_OF_GPU; device++) {
+    //auto& history = dev_history_[device];
+    //if (adaptive_history_ && iteration_started_ >= kBeginRecordAt) {
+      //history.all_ordered_history.push_back(history.ordered_history);
+      //history.all_handle_history.push_back(history.handle_history);
+    //}
+  //}
+}
+
+void MemoryHistory::Statistics() {
+  if (adaptive_history_) {
+    PrintSimilarity();
+  }
   for (int device = 0; device < NUMBER_OF_GPU; device++) {
     auto& history = dev_history_[device];
     std::cout << "GPU" << device << " statistics:" << std::endl
@@ -287,7 +339,55 @@ void MemoryHistory::StopIteration() {
   }
 }
 
+double MemoryHistory::LCS_Similarity(std::vector<MemRecord>& base,
+                                     std::vector<MemRecord>& target) {
+  std::vector<size_t> *prev_table, *curr_table, *temp;
+  size_t size1 = base.size();
+  size_t size2 = target.size();
+  prev_table = new std::vector<size_t>(size2 + 1, 0);
+  curr_table = new std::vector<size_t>(size2 + 1, 0);
+  for (size_t i = 1; i <= size1; i++) {
+    for (size_t j = 1; j <= size2; j++) {
+      if (base[i - 1].handle_id == target[j - 1].handle_id) {
+        (*curr_table)[j] = (*prev_table)[j - 1] + 1;
+      } else {
+        (*curr_table)[j] = std::max((*curr_table)[j - 1], (*prev_table)[j]);
+      }
+    }
+    temp = curr_table;
+    curr_table = prev_table;
+    prev_table = temp;
+  }
+  return (*prev_table)[size2] / (double)std::max(size1, size2);
+}
+
+void MemoryHistory::PrintSimilarity() {
+  double min = 1.0, max = 0.0, mean = 0.0, delta = 0.0, delta2 = 0.0, M2 = 0.0;
+  int count = 0;
+  if (dev_history_[0].all_ordered_history.size() < kBeginRecordAt) {
+    return;
+  }
+  for (int device = 0; device < NUMBER_OF_GPU; device++) {
+    std::cout << "GPU" << device << " history similarity:" << std::endl;
+    auto& history = dev_history_[device];
+    for (size_t i = 0; i < history.all_ordered_history.size() - 1; i++) {
+      auto base = std::next(history.all_ordered_history.begin(), i);
+      auto target = std::next(base, 1);
+      while (target != history.all_ordered_history.end()) {
+        double sim = LCS_Similarity(*(*base), *(*target));
+        min = (sim < min) ? sim : min;
+        max = (sim > max) ? sim : max;
+        count += 1;
+        delta = sim - mean;
+        mean = mean + delta / count;
+        delta2 = sim - mean;
+        M2 += delta * delta2;
+        target++;
+      }
+    }
+  }
+  std::cout << "min: " << min << ", max: " << max << ", mean: " << mean << " " << M2
+            << " stddev: " << sqrt(M2 / count - 1) << std::endl;
+}
+
 } // namespace mxnet
-
-
-

@@ -123,6 +123,7 @@ def main():
                                  'MXNET_MEM_MGR_TYPE=CUDA',
                                  'MXNET_SWAP_ALGORITHM=NaiveHistory',
                                  'MXNET_SWAP_ASYNC=1',
+                                 'MXNET_ADAPTIVE_HISTORY=0',
                        ])
     args, _ = parser.parse_known_args()
     print('Arguments: ')

@@ -85,10 +85,16 @@ void MemoryHistory::PutRecord(handle_id_t handle_id, int device,
         (high_resolution_clock::now() - begin_time_)).count();
     size_t record_step = history.curr_idx;
     MemRecord record = {handle_id, op, t, record_step, size};
-    (*history.handle_history_recording)[handle_id].push_back(record);
-    history.ordered_history_recording->push_back(record);
+    (*(history.all_handle_history.rbegin()))[handle_id].push_back(record);
+    history.all_ordered_history.rbegin()->push_back(record);
   }
   history.curr_idx++;
+  if (history.curr_idx == 371 || history.curr_idx == 1328 ||
+      history.curr_idx == 2109 || history.curr_idx == 3971 ||
+      history.curr_idx == 4716 || history.curr_idx == 5573 ||
+      history.curr_idx == 6137) {
+    std::cout << handle_id << std::endl;
+  }
 }
 
 // LRU: Swapout the least recently used handle
@@ -252,31 +258,29 @@ void MemoryHistory::StartIteration() {
     // adaptive_history_ is false, The LAST history is used by DoDecide().
     for (int i = 0; i < NUMBER_OF_GPU; i++) {
       auto& history = dev_history_[i];
-      std::map<handle_id_t, std::vector<MemRecord>> *handle_history;
-      std::vector<MemRecord> *ordered_history;
       if (history.all_ordered_history.size() ==
           DeviceHistory::kMaxPreservedIteration) {
-        ordered_history = history.all_ordered_history.front();
-        ordered_history->clear();
-        history.all_ordered_history.pop_front();
-        handle_history  = history.all_handle_history.front();
-        handle_history->clear();
-        history.all_handle_history.pop_front();
+        history.all_ordered_history.splice(history.all_ordered_history.end(),
+                                           history.all_ordered_history,
+                                           history.all_ordered_history.begin());
+        history.all_handle_history.splice(history.all_handle_history.end(),
+                                          history.all_handle_history,
+                                          history.all_handle_history.begin());
       } else {
-        ordered_history = new std::vector<MemRecord>();
-        handle_history = new std::map<handle_id_t, std::vector<MemRecord>>();
+        size_t size = history.all_ordered_history.size();
+        history.all_ordered_history.resize(size + 1);
+        history.all_handle_history.resize(size + 1);
       }
-      history.all_ordered_history.push_back(ordered_history);
-      history.all_handle_history.push_back(handle_history);
-      int valid_record_ridx = (history.all_ordered_history.size() > 1) ? 2 : 1;
-      history.ordered_history =
-        *(std::prev(history.all_ordered_history.end(), valid_record_ridx));
-      history.handle_history =
-        *(std::prev(history.all_handle_history.end(), valid_record_ridx));
-      history.ordered_history_recording =
-        *(std::prev(history.all_ordered_history.end(), 1));
-      history.handle_history_recording =
-        *(std::prev(history.all_handle_history.end(), 1));
+      auto ordered_it = history.all_ordered_history.rbegin();
+      auto handle_it  = history.all_handle_history.rbegin();
+      if (history.all_ordered_history.size() > 1) {
+        ordered_it = std::next(ordered_it, 1);
+        handle_it = std::next(handle_it, 1);
+      }
+      history.ordered_history = &(*ordered_it);
+      history.handle_history = &(*handle_it);
+      history.all_ordered_history.rbegin()->clear();
+      history.all_handle_history.rbegin()->clear();
     }
     is_recording_ = true;
   }
@@ -371,10 +375,10 @@ void MemoryHistory::PrintSimilarity() {
     std::cout << "GPU" << device << " history similarity:" << std::endl;
     auto& history = dev_history_[device];
     for (size_t i = 0; i < history.all_ordered_history.size() - 1; i++) {
-      auto base = std::next(history.all_ordered_history.begin(), i);
-      auto target = std::next(base, 1);
-      while (target != history.all_ordered_history.end()) {
-        double sim = LCS_Similarity(*(*base), *(*target));
+      auto base_it = std::next(history.all_ordered_history.begin(), i);
+      auto target_it = std::next(base_it, 1);
+      while (target_it != history.all_ordered_history.end()) {
+        double sim = LCS_Similarity(*base_it, *target_it);
         min = (sim < min) ? sim : min;
         max = (sim > max) ? sim : max;
         count += 1;
@@ -382,7 +386,7 @@ void MemoryHistory::PrintSimilarity() {
         mean = mean + delta / count;
         delta2 = sim - mean;
         M2 += delta * delta2;
-        target++;
+        target_it++;
       }
     }
   }

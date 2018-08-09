@@ -116,7 +116,7 @@ void Prefetch::PrefetchWhileComputing(int device) {
          lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
          computing_) {
     MemoryHistory::MemRecord r =
-        history.ordered_history->at(++lookahead_pos_[device]);
+        (*history.ordered_history)[++lookahead_pos_[device]];
     if (r.operation_id == MemoryHistory::GET_ADDR) {
       ++history.prefetch_count;
       Swap::Get()->GetAddr(r.handle_id, true);
@@ -138,7 +138,7 @@ void Prefetch::HistoryBasedPrefetch(int device) {
          lookahead_pos_[device] >= history.curr_idx &&
          lookahead_pos_[device] - history.curr_idx < steps_ahead_) {
     MemoryHistory::MemRecord r =
-        history.ordered_history->at(++lookahead_pos_[device]);
+        (*history.ordered_history)[++lookahead_pos_[device]];
     if (r.operation_id == MemoryHistory::GET_ADDR) {
       ++history.prefetch_count;
       Swap::Get()->GetAddr(r.handle_id, true);

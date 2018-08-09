@@ -42,13 +42,10 @@ public:
   };
   struct DeviceHistory {
     static const size_t kMaxPreservedIteration = 30;
-    std::list<std::map<handle_id_t, std::vector<MemRecord>>*> all_handle_history;
-    // FIXME(fegin): Should we use std::reference_wrapper instead of pointer?
+    std::list<std::map<handle_id_t, std::vector<MemRecord>>> all_handle_history;
     std::map<handle_id_t, std::vector<MemRecord>> *handle_history;
-    std::map<handle_id_t, std::vector<MemRecord>> *handle_history_recording;
-    std::list<std::vector<MemRecord>*> all_ordered_history;
+    std::list<std::vector<MemRecord>> all_ordered_history;
     std::vector<MemRecord> *ordered_history;
-    std::vector<MemRecord> *ordered_history_recording;
     std::list<handle_id_t> lru_list;
     std::unordered_map<handle_id_t, std::list<handle_id_t>::iterator> lru_map;
     size_t curr_idx;
@@ -61,7 +58,7 @@ public:
     size_t swap_out_total;
     size_t num_get_addr;
   };
-  static const size_t kBeginRecordAt = 2;
+  static const size_t kBeginRecordAt = 4;
 
   ~MemoryHistory();
   static bool CompareByStep(const MemRecord &r1, const MemRecord &r2) {

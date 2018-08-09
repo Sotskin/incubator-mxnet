@@ -458,11 +458,14 @@ def _notify_shutdown():
 
 atexit.register(_notify_shutdown)
 
-def start_iteration():
-    check_call(_LIB.MXStartIteration())
+def swap_start_iteration():
+    check_call(_LIB.MXSwapStartIteration())
 
-def stop_iteration():
-    check_call(_LIB.MXStopIteration())
+def swap_stop_iteration():
+    check_call(_LIB.MXSwapStopIteration())
+
+def swap_statistics():
+    check_call(_LIB.MXSwapStatistics())
 
 def add_fileline_to_docstring(module, incursive=True):
     """Append the definition position to each function contained in module.

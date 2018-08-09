@@ -23,7 +23,7 @@ Prefetch::Prefetch() {
   lookahead_pos_.resize(NUMBER_OF_GPU);
   prefetcher_.resize(NUMBER_OF_GPU);
   for (int i = 0; i < NUMBER_OF_GPU; i++) {
-    lookahead_pos_[i] = 0; 
+    lookahead_pos_[i] = 0;
   }
   std::cout << "Prefetch Algorithm: " << prefetch_algorithm_ << std::endl;
   std::cout << "Prefetch Steps Ahead: " << steps_ahead_ << std::endl;
@@ -72,6 +72,9 @@ void Prefetch::StartPrefetching() {
   for (int device = 0; device < NUMBER_OF_GPU; device++) {
     prefetcher_[device] = std::thread(&Prefetch::Prefetching, this, device);
   }
+  //while (!Prefetch::Get()->IsPrefetching()) {
+    //usleep(1);
+  //}
 }
 
 
@@ -108,12 +111,12 @@ void Prefetch::PrefetchWhileComputing(int device) {
   if (lookahead_pos_[device] < history.curr_idx) {
     lookahead_pos_[device] = history.curr_idx;
   }
-  while (lookahead_pos_[device] + 1 < history.ordered_history.size() &&
+  while (lookahead_pos_[device] + 1 < history.ordered_history->size() &&
          lookahead_pos_[device] >= history.curr_idx &&
          lookahead_pos_[device] - history.curr_idx < steps_ahead_ &&
          computing_) {
     MemoryHistory::MemRecord r =
-        history.ordered_history[++lookahead_pos_[device]];
+        (*history.ordered_history)[++lookahead_pos_[device]];
     if (r.operation_id == MemoryHistory::GET_ADDR) {
       ++history.prefetch_count;
       Swap::Get()->GetAddr(r.handle_id, true);
@@ -131,11 +134,11 @@ void Prefetch::HistoryBasedPrefetch(int device) {
   if (lookahead_pos_[device] < history.curr_idx) {
     lookahead_pos_[device] = history.curr_idx;
   }
-  while (lookahead_pos_[device] + 1 < history.ordered_history.size() &&
+  while (lookahead_pos_[device] + 1 < history.ordered_history->size() &&
          lookahead_pos_[device] >= history.curr_idx &&
          lookahead_pos_[device] - history.curr_idx < steps_ahead_) {
     MemoryHistory::MemRecord r =
-        history.ordered_history[++lookahead_pos_[device]];
+        (*history.ordered_history)[++lookahead_pos_[device]];
     if (r.operation_id == MemoryHistory::GET_ADDR) {
       ++history.prefetch_count;
       Swap::Get()->GetAddr(r.handle_id, true);

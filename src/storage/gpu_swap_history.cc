@@ -85,20 +85,15 @@ void MemoryHistory::PutRecord(handle_id_t handle_id, int device,
         (high_resolution_clock::now() - begin_time_)).count();
     size_t record_step = history.curr_idx;
     MemRecord record = {handle_id, op, t, record_step, size};
-    (*(history.all_handle_history.rbegin()))[handle_id].push_back(record);
-    history.all_ordered_history.rbegin()->push_back(record);
+    history.all_handle_history.back()[handle_id].push_back(record);
+    history.all_ordered_history.back().push_back(record);
   }
   history.curr_idx++;
-  if (history.curr_idx == 371 || history.curr_idx == 1328 ||
-      history.curr_idx == 2109 || history.curr_idx == 3971 ||
-      history.curr_idx == 4716 || history.curr_idx == 5573 ||
-      history.curr_idx == 6137) {
-    std::cout << handle_id << std::endl;
-  }
 }
 
 // LRU: Swapout the least recently used handle
-handle_id_t MemoryHistory::LRU(std::unordered_set<handle_id_t> handles, int device, void* arg) {
+handle_id_t MemoryHistory::LRU(std::unordered_set<handle_id_t> handles,
+                               int device, void* arg) {
   auto& history = dev_history_[device];
   handle_id_t victim = -1;
   while (history.lru_list.size() != 0 &&
@@ -194,8 +189,8 @@ handle_id_t MemoryHistory::SizeHistory(
   return 0;
 }
 
-handle_id_t MemoryHistory::DecideVictim(std::unordered_set<handle_id_t> handles, int device,
-                                     void* arg) {
+handle_id_t MemoryHistory::DecideVictim(std::unordered_set<handle_id_t> handles,
+                                        int device, void* arg) {
   std::lock_guard<std::mutex> lock(mutex_[device]);
   if (iteration_idx_ <= kBeginRecordAt) {
     return MemoryHistory::LRU(handles, device, nullptr);

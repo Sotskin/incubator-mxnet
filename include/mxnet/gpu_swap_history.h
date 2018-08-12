@@ -58,7 +58,7 @@ public:
     size_t swap_out_total;
     size_t num_get_addr;
   };
-  static const size_t kBeginRecordAt = 3;
+  static const size_t kBeginRecordAt = 2;
 
   ~MemoryHistory();
   static bool CompareByStep(const MemRecord &r1, const MemRecord &r2) {

@@ -1,15 +1,17 @@
-#ifndef MXNET_MEM_MGR_H_
-#define MXNET_MEM_MGR_H_
+#ifndef MXNET_GPU_SWAP_MEMMGR_H_
+#define MXNET_GPU_SWAP_MEMMGR_H_
 
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <map>
+#include <math.h>
 #include <memory>
 #include <mutex>
-#include <math.h>
-#include <mxnet/buddy.h>
 #include <stdio.h>
 #include <string>
+
+#include <mxnet/gpu_swap_buddy.h>
+#include <mxnet/gpu_swap_history.h>
 
 namespace mxnet {
 
@@ -60,11 +62,11 @@ class BuddyMemoryManager : public MemoryManager {
 
     BuddySystem** buddy_;
     std::mutex mutex_;
-    int deviceCount_;
 }; // Class BuddyMemoryManager
 
 std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 MemoryManager* GetMemoryManager();
+
 } //namespace mxnet
 
 #endif // MXNET_MEM_MGR_H_

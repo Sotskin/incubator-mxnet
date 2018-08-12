@@ -16,14 +16,17 @@ typedef enum {
   blockStatus_Free,
   blockStatus_Allocated
 } blockStatus_t;
-  
+
 const int MIN_ALLOC_SIZE = 128;
 // TODO(fegin): This fixed value is not acceptable.
 const size_t CLEAN_UP_BOUNDRY = 500000000;
 
-// TODO(fegin): Since everything is integer, we can use << and >> to replace pow and log2.
+// TODO(fegin): Since everything is integer, we can use << and >> 
+//              to replace pow and log2.
 inline int GetListIdx(size_t size) {
-  if (size <= 128) return 0;
+  if (size <= 128) {
+    return 0;
+  }
   return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MIN_ALLOC_SIZE)));
 }
 
@@ -36,19 +39,10 @@ inline size_t GetListBlockSize(int idx) {
 }
 
 class Block {
-  private:
-    char* data_;
-    std::size_t size_;
-    Block* nextBlock_;
-    blockStatus_t status_;
-
   public:
     Block(char* data, size_t size)
-      : data_(data),
-        size_(size),
-        nextBlock_(NULL),
-        status_(blockStatus_Uninitialized) {
-    }
+      : data_(data), size_(size), nextBlock_(NULL),
+        status_(blockStatus_Uninitialized) {}
 
     char* GetData() { return data_; }
     size_t GetSize() { return size_; }
@@ -58,26 +52,17 @@ class Block {
     void SetNext(Block* b) { nextBlock_ = b; }
     void SetAllocated() { status_ = blockStatus_Allocated; }
     void SetFree() { status_ = blockStatus_Free; }
+
+  private:
+    char* data_;
+    std::size_t size_;
+    Block* nextBlock_;
+    blockStatus_t status_;
 }; // Class Block
 
-class BuddySystem {
-  private:
-    Block* start_;
-    Block** freeList_;
-    size_t total_;
-    size_t allocated_;
-    size_t free_;
-    int freeListSize_;
-    int gpuIdx_;
-    typedef std::map<char*, Block*> MemoryPool;
-    MemoryPool memPool_;
-    void InsertBlock(Block* block);
-    Block* Merge(Block* block, int idx);
-    void MergeFreeList();
-    void PrintFreeList();
-    void CheckDuplicate();
-    void PrintMemPool();
+typedef std::map<char*, Block*> MemoryPool;
 
+class BuddySystem {
   public:
     BuddySystem(Block* start, size_t total, int gpuIdx);
     ~BuddySystem();
@@ -92,6 +77,23 @@ class BuddySystem {
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr);
     void CleanUp();
+
+  private:
+    void InsertBlock(Block* block);
+    Block* Merge(Block* block, int idx);
+    void MergeFreeList();
+    void PrintFreeList();
+    void CheckDuplicate();
+    void PrintMemPool();
+
+    Block* start_;
+    Block** freeList_;
+    size_t total_;
+    size_t allocated_;
+    size_t free_;
+    int freeListSize_;
+    int gpuIdx_;
+    MemoryPool memPool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

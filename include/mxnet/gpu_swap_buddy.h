@@ -2,78 +2,64 @@
 #define MXNET_BUDDY_H_
 
 #include <cuda_runtime_api.h>
-#include <iostream>
 #include <map>
-#include <math.h>
-#include <set>
-#include <stdio.h>
-#include <string>
 
 namespace mxnet {
-
-typedef enum {
-  blockStatus_Uninitialized,
-  blockStatus_Free,
-  blockStatus_Allocated
-} blockStatus_t;
-
-const int MIN_ALLOC_SIZE = 128;
-// TODO(fegin): This fixed value is not acceptable.
-const size_t CLEAN_UP_BOUNDRY = 500000000;
-
-// TODO(fegin): Since everything is integer, we can use << and >> 
-//              to replace pow and log2.
-inline int GetListIdx(size_t size) {
-  if (size <= 128) {
-    return 0;
-  }
-  return ceil(log2(static_cast<double>(size)) - log2(static_cast<double>(MIN_ALLOC_SIZE)));
-}
-
-inline unsigned long GetListSize(size_t size) {
-  return GetListIdx(size) + 1;
-}
-
-inline size_t GetListBlockSize(int idx) {
-  return pow(2, idx + log2(static_cast<double>(MIN_ALLOC_SIZE)));
-}
 
 class Block {
   public:
     Block(char* data, size_t size)
-      : data_(data), size_(size), nextBlock_(NULL),
-        status_(blockStatus_Uninitialized) {}
-
-    char* GetData() { return data_; }
-    size_t GetSize() { return size_; }
-    Block* GetNext() { return nextBlock_; }
-
+      : data_(data), size_(size), next_block_(NULL) {};
+    char* Data() { return data_; }
+    size_t Size() { return size_; }
+    Block* Next() { return next_block_; }
     void SetSize(size_t size) { size_ = size; }
-    void SetNext(Block* b) { nextBlock_ = b; }
-    void SetAllocated() { status_ = blockStatus_Allocated; }
-    void SetFree() { status_ = blockStatus_Free; }
+    void SetNext(Block* b) { next_block_ = b; }
 
   private:
     char* data_;
     std::size_t size_;
-    Block* nextBlock_;
-    blockStatus_t status_;
+    Block* next_block_;
 }; // Class Block
 
 typedef std::map<char*, Block*> MemoryPool;
 
+static inline size_t Log2(size_t x) {
+  size_t y;
+  asm ( "\tbsr %1, %0\n"
+      : "=r"(y)
+      : "r" (x)
+  );
+  return y;
+}
+
 class BuddySystem {
   public:
-    BuddySystem(Block* start, size_t total, int gpuIdx);
+    static const size_t MIN_ALLOC_SIZE = 128;
+    // TODO(fegin): This fixed value is not acceptable.
+    static const size_t CLEAN_UP_BOUNDRY = 500000000;
+
+    static inline size_t GetListIdx(size_t size) {
+      size_t size_log = Log2(size);
+      size_log += (size_log ^ size) ? 1 : 0;
+      return size_log - Log2(MIN_ALLOC_SIZE);
+    }
+    static inline size_t GetListSize(size_t size) {
+      return GetListIdx(size) + 1;
+    }
+    static inline size_t GetListBlockSize(int idx) {
+      return 2 << (idx + Log2(MIN_ALLOC_SIZE));
+    }
+
+    BuddySystem(Block* start, size_t total, size_t device_id);
     ~BuddySystem();
     Block* GetStart() { return start_; }
     size_t GetTotal() { return total_; }
     size_t GetFree() { return free_; }
     size_t GetAllocated() { return allocated_; }
-    int GetFreeListSize() { return freeListSize_; }
-    Block** GetFreeList() { return freeList_; }
-    int GetGPUIdx() { return gpuIdx_; }
-    MemoryPool GetMemPool() { return memPool_; }
+    int GetFreeListSize() { return free_list_size_; }
+    Block** GetFreeList() { return free_list_; }
+    MemoryPool GetMemPool() { return mem_pool_; }
     void* Alloc(size_t size);
     cudaError_t Free(void* ptr);
     void CleanUp();
@@ -86,14 +72,14 @@ class BuddySystem {
     void CheckDuplicate();
     void PrintMemPool();
 
+    size_t device_id_;
     Block* start_;
-    Block** freeList_;
+    Block** free_list_;
     size_t total_;
     size_t allocated_;
     size_t free_;
-    int freeListSize_;
-    int gpuIdx_;
-    MemoryPool memPool_;
+    int free_list_size_;
+    MemoryPool mem_pool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

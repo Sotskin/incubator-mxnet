@@ -16,7 +16,6 @@
 namespace mxnet {
 
 // Save some memory for each device(subject to change).
-const double GPU_UTIL_RATIO = 0.96;
 
 class MemoryManager {
   public:
@@ -49,6 +48,10 @@ class CudaMemoryManager : public MemoryManager {
 
 class BuddyMemoryManager : public MemoryManager {
   public:
+    static constexpr double GPU_UTIL_RATIO = 0.96;
+    static const size_t MB = 1L << 20;
+    static const size_t GB = 1L << 30;
+
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);
     cudaError_t Malloc(void*& devptr, size_t size, int device_id);
@@ -60,8 +63,9 @@ class BuddyMemoryManager : public MemoryManager {
     BuddyMemoryManager();
     ~BuddyMemoryManager();
 
-    BuddySystem** buddy_;
-    std::mutex mutex_;
+    std::vector<BuddySystem*> buddy_;
+    // Note that this line means we assume there will no more than 16 GPUs.
+    std::array<std::mutex, 16> mutex_;
 }; // Class BuddyMemoryManager
 
 std::shared_ptr<MemoryManager> GetMemoryManagerRef();

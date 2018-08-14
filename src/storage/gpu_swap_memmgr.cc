@@ -62,11 +62,8 @@ cudaError_t CudaMemoryManager::Free(void* devptr, int device_id) {
 
 cudaError_t CudaMemoryManager::MemGetInfo(int device_id, size_t* total,
                                           size_t* free) {
-  //std::cout<<"MemGetInfo: Check"<<std::endl;
   CUDA_CALL(cudaSetDevice(device_id));
   CUDA_CALL(cudaMemGetInfo(free, total));
-  //std::cout << *free << " " << *total << std::endl;
-  //std::cout << "MemGetInfo: Check Over" << std::endl;
   return cudaSuccess;
 }
 
@@ -83,49 +80,41 @@ bool CudaMemoryManager::TryAllocate(int device_id, size_t size) {
 
 BuddyMemoryManager::BuddyMemoryManager() {
   std::cout << "Initializing Memory Manager" << std::endl;
-  buddy_ = new BuddySystem*[NUMBER_OF_GPU];
-  for (int device  = 0; device < NUMBER_OF_GPU; device++) {
-    buddy_[device] = NULL;
-    CUDA_CALL(cudaSetDevice(device));
+  buddy_.resize(NUMBER_OF_GPU);
+  for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
     size_t avail, total;
-    size_t mb = 1 << 20;
+    CUDA_CALL(cudaSetDevice(device));
     CUDA_CALL(cudaMemGetInfo(&avail, &total));
     avail = static_cast<size_t>(avail * GPU_UTIL_RATIO);
-    char* wholeMemory = NULL;
-    while (cudaMalloc((void**)&wholeMemory, avail) == cudaErrorMemoryAllocation) {
-      avail -= mb;
-      if (avail <= 0) {
+    char* all_memory = NULL;
+    while (cudaMalloc((void**)&all_memory, avail) == cudaErrorMemoryAllocation) {
+      avail -= MB;
+      if (avail == 0) {
         break;
       }
     }
-    if (avail > 0) {
-      buddy_[device] = new BuddySystem(new Block(wholeMemory, avail), avail,
-                                       device);
-      std::cout << "Buddy System No." << device
-                << " initialized with size = " << avail << " bytes"
-                << std::endl;
-    } else {
-      std::cout << "Warning: There's no memory left on device: " << device
-                << std::endl;
-    }
+    CHECK(avail > 0);
+    buddy_[device] = new BuddySystem(new Block(all_memory, avail), avail,
+                                     device);
+    std::cout << "Buddy System No." << device << " initialized with size = "
+              << avail << " bytes" << std::endl;
   }
   std::cout << "Memory Manager initialization completed" << std::endl;
 }
 
 BuddyMemoryManager::~BuddyMemoryManager() {
-  for (int device = 0; device < NUMBER_OF_GPU; device++) {
+  for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
     CUDA_CALL(cudaSetDevice(device));
-    BuddySystem* buddy = buddy_[device];
-    buddy->~BuddySystem();
-    CUDA_CALL(cudaFree((void*)buddy->GetStart()));
-    std::cout << "Buddy System No." << buddy->GetGPUIdx() << " destructed"
-              << std::endl;
+    CUDA_CALL(cudaFree((void*)(buddy_[device]->GetStart())));
+    delete buddy_[device];
+    buddy_[device] = nullptr;
+    std::cout << "Buddy System No." << device << " destructed" << std::endl;
   }
 }
 
 cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size,
                                        int device_id) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
   CUDA_CALL(cudaSetDevice(device_id));
   devptr = buddy_[device_id]->Alloc(size);
   if (!devptr) {
@@ -135,8 +124,7 @@ cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size,
 }
 
 cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  CUDA_CALL(cudaSetDevice(device_id));
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
   buddy_[device_id]->Free(devptr);
   return cudaSuccess;
 }
@@ -144,9 +132,8 @@ cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
 //returns total memory and total free memory(not necessarily consequtive) in mmu
 cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
                                            size_t* free) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  CUDA_CALL(cudaSetDevice(device_id));
-  if (buddy_[device_id] == NULL) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  if (buddy_[device_id] == nullptr) {
     return cudaErrorInvalidValue;
   }
   *total = buddy_[device_id]->GetTotal();
@@ -155,35 +142,34 @@ cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
 }
 
 bool BuddyMemoryManager::TryAllocate(int device_id, size_t size) {
-  CUDA_CALL(cudaSetDevice(device_id));
   BuddySystem* buddy = buddy_[device_id];
-  Block** freeList = buddy->GetFreeList();
-  int freeListSize = buddy->GetFreeListSize();
-  int idx = GetListIdx(size);
+  Block** free_list = buddy->GetFreeList();
+  size_t free_list_size = buddy->GetFreeListSize();
+  size_t idx = BuddySystem::GetListIdx(size);
+  // FIXME(fegin): ????
   if (idx == 0) {
     idx = 1;
   }
 
-  for (int i = idx; i < freeListSize; i++) {
-    if (freeList[i] != NULL) {
-      std::cout << "SUCCESS: There is enough space" << std::endl;
+  // FIXME(fegin): Can we combine this to the next for loop?
+  for (size_t i = idx; i < free_list_size; i++) {
+    if (free_list[i] != nullptr) {
       return true;
     }
   }
 
-  if (buddy->GetAllocated() < CLEAN_UP_BOUNDRY) {
+  // FIXME(fegin): ???
+  if (buddy->GetAllocated() < BuddySystem::CLEAN_UP_BOUNDRY) {
     std::cout << "Starting clean up process" << std::endl;
     buddy->CleanUp();
   }
 
-  for (int i = idx; i < freeListSize; i++) {
-    if (freeList[i] != NULL) {
-      std::cout << "SUCCESS: There is enough space" << std::endl;
+  for (size_t i = idx; i < free_list_size; i++) {
+    if (free_list[i] != nullptr) {
       return true;
     }
   }
 
-  std::cout << "FAILURE: There isn't enough space" << std::endl;
   return false;
 }
 

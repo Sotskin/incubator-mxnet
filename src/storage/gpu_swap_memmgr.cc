@@ -85,16 +85,16 @@ BuddyMemoryManager::BuddyMemoryManager() {
     size_t avail, total;
     CUDA_CALL(cudaSetDevice(device));
     CUDA_CALL(cudaMemGetInfo(&avail, &total));
-    avail = static_cast<size_t>(avail * GPU_UTIL_RATIO);
-    char* memory = NULL;
+    avail = static_cast<size_t>(avail * kGPUUtilRatio);
+    void* memory = NULL;
     while (cudaMalloc((void**)&memory, avail) == cudaErrorMemoryAllocation) {
-      avail -= MB;
+      avail -= kMB;
       if (avail == 0) {
         break;
       }
     }
     CHECK(avail > 0);
-    buddy_[device] = new BuddySystem(new Block(memory, avail), avail, device);
+    buddy_[device] = new BuddySystem(memory, avail, device);
     std::cout << "Buddy System No." << device << " initialized with size = "
               << avail << " bytes" << std::endl;
   }
@@ -104,7 +104,7 @@ BuddyMemoryManager::BuddyMemoryManager() {
 BuddyMemoryManager::~BuddyMemoryManager() {
   for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
     CUDA_CALL(cudaSetDevice(device));
-    CUDA_CALL(cudaFree((void*)(buddy_[device]->GetStart()->Data())));
+    CUDA_CALL(cudaFree((void*)(buddy_[device]->Memory())));
     delete buddy_[device];
     buddy_[device] = nullptr;
     std::cout << "Buddy System No." << device << " destructed" << std::endl;
@@ -128,8 +128,7 @@ cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
 cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
                                            size_t* free) {
   std::lock_guard<std::mutex> lock(mutex_[device_id]);
-  *total = buddy_[device_id]->GetTotal();
-  *free = buddy_[device_id]->GetFree();
+  buddy_[device_id]->MemoryUsage(total, free);
   return cudaSuccess;
 }
 

@@ -48,9 +48,9 @@ class CudaMemoryManager : public MemoryManager {
 
 class BuddyMemoryManager : public MemoryManager {
   public:
-    static constexpr double GPU_UTIL_RATIO = 0.96;
-    static const size_t MB = 1L << 20;
-    static const size_t GB = 1L << 30;
+    static constexpr double kGPUUtilRatio = 0.96;
+    static const size_t kMB = 1L << 20;
+    static const size_t kGB = 1L << 30;
 
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);

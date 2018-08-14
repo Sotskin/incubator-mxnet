@@ -9,16 +9,16 @@ namespace mxnet {
 
 class Block {
   public:
-    Block(char* data, size_t size)
+    Block(void* data, size_t size)
       : data_(data), size_(size), next_block_(NULL) {};
-    char* Data() { return data_; }
+    void* Data() { return data_; }
     size_t Size() { return size_; }
     Block* Next() { return next_block_; }
     void SetSize(size_t size) { size_ = size; }
     void SetNext(Block* b) { next_block_ = b; }
 
   private:
-    char* data_;
+    void* data_;
     std::size_t size_;
     Block* next_block_;
 }; // Class Block
@@ -50,11 +50,13 @@ class BuddySystem {
       return 2 << (idx + Log2(kMinAllocateSize));
     }
 
-    BuddySystem(Block* start, size_t total, size_t device_id);
+    BuddySystem(void* memory, size_t size, size_t device_id);
     ~BuddySystem();
-    Block* GetStart() { return start_; }
-    size_t GetTotal() { return total_; }
-    size_t GetFree() { return free_; }
+    void* Memory() { return head_block_->Data(); }
+    void MemoryUsage(size_t* total, size_t* free) {
+      *total = total_size_;
+      *free = free_size_;
+    }
     int FreeListSize() { return free_list_size_; }
     bool TryAllocate(size_t size);
     void* Malloc(size_t size);
@@ -70,13 +72,13 @@ class BuddySystem {
     void PrintMemPool();
 
     size_t device_id_;
-    Block* start_;
+    Block* head_block_;
     std::vector<Block*> free_list_;
-    size_t total_;
-    size_t allocated_;
-    size_t free_;
+    size_t total_size_;
+    size_t allocated_size_;
+    size_t free_size_;
     int free_list_size_;
-    std::map<char*, Block*> mem_pool_;
+    std::map<void*, Block*> mem_pool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

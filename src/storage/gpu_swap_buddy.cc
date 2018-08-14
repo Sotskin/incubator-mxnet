@@ -8,16 +8,17 @@
 
 namespace mxnet {
 
-BuddySystem::BuddySystem(Block* start, size_t total, size_t device_id)
-  : device_id_(device_id), start_(start), total_(total), allocated_(0),
-    free_(total) {
-  free_list_size_ = ListSize(total);
+BuddySystem::BuddySystem(void* memory, size_t size, size_t device_id)
+  : device_id_(device_id), total_size_(size), allocated_size_(0),
+    free_size_(size) {
+  free_list_size_ = ListSize(size);
   free_list_.resize(free_list_size_);
+  head_block_ = new Block(memory, size);
   for (int i = 0; i < free_list_size_; i++) {
     free_list_[i] = NULL;
   }
   if (free_list_size_ > 0) {
-    free_list_[free_list_size_ - 1] = start;
+    free_list_[free_list_size_ - 1] = head_block_;
   }
   PrintFreeList();
 }
@@ -91,8 +92,8 @@ void* BuddySystem::Malloc(size_t size) {
 
   if (found) {
     size_t size = allocated_block->Size();
-    allocated_ += size;
-    free_ -= size;
+    allocated_size_ += size;
+    free_size_ -= size;
     assert(mem_pool_.find(allocated_block->Data()) == mem_pool_.end());
     mem_pool_[allocated_block->Data()] = allocated_block;
     PrintFreeList();
@@ -104,14 +105,14 @@ void* BuddySystem::Malloc(size_t size) {
 }
 
 cudaError_t BuddySystem::Free(void* ptr) {
-  std::map<char*, Block*>::iterator iter = mem_pool_.find((char*)ptr);
+  std::map<void*, Block*>::iterator iter = mem_pool_.find(ptr);
   if (iter == mem_pool_.end()) {
     return cudaErrorInvalidValue;
   }
   Block* free_block = iter->second;
   mem_pool_.erase(iter);
-  allocated_ -= free_block->Size();
-  free_ += free_block->Size();
+  allocated_size_ -= free_block->Size();
+  free_size_ += free_block->Size();
   InsertBlock(free_block);
   MergeFreeList();
   PrintMemPool();
@@ -255,7 +256,7 @@ void BuddySystem::PrintFreeList() {
 }
 
 void BuddySystem::CheckDuplicate() {
-  std::set<char*> addr;
+  std::set<void*> addr;
   bool abort = false;
   for (int i = 0; i < free_list_size_; i++) {
     Block * curr = free_list_[i];
@@ -360,7 +361,7 @@ void BuddySystem::PrintMemPool() {
 
   std::cout << "=================================================" << std::endl;
   std::cout << "Printing Memory Pool:" << std::endl;
-  std::map<char*, Block*>::const_iterator iter = mem_pool_.begin();
+  std::map<void*, Block*>::const_iterator iter = mem_pool_.begin();
   while (iter != mem_pool_.end()) {
     std::cout << "Block addr = " << (void*)iter->first << " size = "
               << iter->second->Size() << std::endl;

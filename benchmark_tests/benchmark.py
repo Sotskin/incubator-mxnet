@@ -11,7 +11,7 @@ def feed_args(net, arg_arrays):
             arr[:] = 0.0
 
 def test():
-    mx.base.start_iteration()
+    mx.base.swap_start_iteration()
     print(sys.argv)
     parser = argparse.ArgumentParser("Benchmark Tests")
     parser.add_argument('model', type=str, default="resnet", help='The model to be tested.')
@@ -65,14 +65,14 @@ def test():
     import time
     print('Sleep')
     time.sleep(10)
-    mx.base.stop_iteration()
+    mx.base.swap_stop_iteration()
     # TODO(sotksin): Find a way to know the end of a binding
     print('Bind End')
     all_time = []
     #t0 = time.time()
     for i in range(num_loops):
         print('=> loop %d' % i);
-        mx.base.start_iteration()
+        mx.base.swap_start_iteration()
         st_l = time.time()
         outputs = executor.forward()
         if num_classes is None:
@@ -83,8 +83,9 @@ def test():
             grad.wait_to_read()
         if len(outputs) > 0:
             outputs[-1].wait_to_read()
-        mx.base.stop_iteration()
+        mx.base.swap_stop_iteration()
         ed_l = time.time()
+        mx.base.swap_statistics()
 
         print('=> loop duration %f\n' % float(ed_l - st_l))
         if i > 1:

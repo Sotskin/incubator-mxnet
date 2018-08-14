@@ -105,15 +105,21 @@ int MXNotifyShutdown() {
   API_END();
 }
 
-int MXStartIteration() {
+int MXSwapStartIteration() {
   API_BEGIN();
   MemoryHistory::Get()->StartIteration();
   API_END();
 }
 
-int MXStopIteration() {
+int MXSwapStopIteration() {
   API_BEGIN();
   MemoryHistory::Get()->StopIteration();
+  API_END();
+}
+
+int MXSwapStatistics() {
+  API_BEGIN();
+  MemoryHistory::Get()->Statistics();
   API_END();
 }
 

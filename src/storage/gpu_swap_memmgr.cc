@@ -86,16 +86,15 @@ BuddyMemoryManager::BuddyMemoryManager() {
     CUDA_CALL(cudaSetDevice(device));
     CUDA_CALL(cudaMemGetInfo(&avail, &total));
     avail = static_cast<size_t>(avail * GPU_UTIL_RATIO);
-    char* all_memory = NULL;
-    while (cudaMalloc((void**)&all_memory, avail) == cudaErrorMemoryAllocation) {
+    char* memory = NULL;
+    while (cudaMalloc((void**)&memory, avail) == cudaErrorMemoryAllocation) {
       avail -= MB;
       if (avail == 0) {
         break;
       }
     }
     CHECK(avail > 0);
-    buddy_[device] = new BuddySystem(new Block(all_memory, avail), avail,
-                                     device);
+    buddy_[device] = new BuddySystem(new Block(memory, avail), avail, device);
     std::cout << "Buddy System No." << device << " initialized with size = "
               << avail << " bytes" << std::endl;
   }
@@ -105,7 +104,7 @@ BuddyMemoryManager::BuddyMemoryManager() {
 BuddyMemoryManager::~BuddyMemoryManager() {
   for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
     CUDA_CALL(cudaSetDevice(device));
-    CUDA_CALL(cudaFree((void*)(buddy_[device]->GetStart())));
+    CUDA_CALL(cudaFree((void*)(buddy_[device]->GetStart()->Data())));
     delete buddy_[device];
     buddy_[device] = nullptr;
     std::cout << "Buddy System No." << device << " destructed" << std::endl;
@@ -115,12 +114,8 @@ BuddyMemoryManager::~BuddyMemoryManager() {
 cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size,
                                        int device_id) {
   std::lock_guard<std::mutex> lock(mutex_[device_id]);
-  CUDA_CALL(cudaSetDevice(device_id));
-  devptr = buddy_[device_id]->Alloc(size);
-  if (!devptr) {
-    return cudaErrorMemoryAllocation;
-  }
-  return cudaSuccess;
+  devptr = buddy_[device_id]->Malloc(size);
+  return (devptr) ? cudaSuccess : cudaErrorMemoryAllocation;
 }
 
 cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
@@ -133,44 +128,14 @@ cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
 cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
                                            size_t* free) {
   std::lock_guard<std::mutex> lock(mutex_[device_id]);
-  if (buddy_[device_id] == nullptr) {
-    return cudaErrorInvalidValue;
-  }
   *total = buddy_[device_id]->GetTotal();
   *free = buddy_[device_id]->GetFree();
   return cudaSuccess;
 }
 
 bool BuddyMemoryManager::TryAllocate(int device_id, size_t size) {
-  BuddySystem* buddy = buddy_[device_id];
-  Block** free_list = buddy->GetFreeList();
-  size_t free_list_size = buddy->GetFreeListSize();
-  size_t idx = BuddySystem::GetListIdx(size);
-  // FIXME(fegin): ????
-  if (idx == 0) {
-    idx = 1;
-  }
-
-  // FIXME(fegin): Can we combine this to the next for loop?
-  for (size_t i = idx; i < free_list_size; i++) {
-    if (free_list[i] != nullptr) {
-      return true;
-    }
-  }
-
-  // FIXME(fegin): ???
-  if (buddy->GetAllocated() < BuddySystem::CLEAN_UP_BOUNDRY) {
-    std::cout << "Starting clean up process" << std::endl;
-    buddy->CleanUp();
-  }
-
-  for (size_t i = idx; i < free_list_size; i++) {
-    if (free_list[i] != nullptr) {
-      return true;
-    }
-  }
-
-  return false;
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  return buddy_[device_id]->TryAllocate(size);
 }
 
 // Factory functions.

@@ -11,8 +11,8 @@ namespace mxnet {
 BuddySystem::BuddySystem(Block* start, size_t total, size_t device_id)
   : device_id_(device_id), start_(start), total_(total), allocated_(0),
     free_(total) {
-  free_list_size_ = GetListSize(total);
-  free_list_ = new Block*[free_list_size_];
+  free_list_size_ = ListSize(total);
+  free_list_.resize(free_list_size_);
   for (int i = 0; i < free_list_size_; i++) {
     free_list_[i] = NULL;
   }
@@ -28,8 +28,37 @@ BuddySystem::~BuddySystem() {
   }
 }
 
-void* BuddySystem::Alloc(size_t size) {
-  int list_idx = GetListIdx(size);
+bool BuddySystem::TryAllocate(size_t size) {
+  size_t free_list_size = FreeListSize();
+  size_t idx = ListIdx(size);
+  // FIXME(fegin): ????
+  if (idx == 0) {
+    idx = 1;
+  }
+
+  // FIXME(fegin): Can we combine this to the next for loop?
+  for (size_t i = idx; i < free_list_size; i++) {
+    if (free_list_[i] != nullptr) {
+      return true;
+    }
+  }
+
+  // FIXME(fegin): ???
+  if (allocated_ < kCleanUpBoundary) {
+    std::cout << "Starting clean up process" << std::endl;
+    CleanUp();
+  }
+
+  for (size_t i = idx; i < free_list_size; i++) {
+    if (free_list_[i] != nullptr) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void* BuddySystem::Malloc(size_t size) {
+  int list_idx = ListIdx(size);
   int curr_idx = list_idx;
   bool found = false;
   Block* allocated_block;
@@ -45,7 +74,7 @@ void* BuddySystem::Alloc(size_t size) {
       curr_idx++;
       if (free_list_[curr_idx] != NULL) {
         Block* victim_block = free_list_[curr_idx];
-        unsigned long block_size = GetListBlockSize(curr_idx - 1);
+        unsigned long block_size = ListBlockSize(curr_idx - 1);
         std::cout << "Blocks supposed to be inserted at list index = "
                   << curr_idx - 1 << std::endl;
         InsertBlock(new Block(victim_block->Data(), (size_t)block_size));
@@ -91,7 +120,7 @@ cudaError_t BuddySystem::Free(void* ptr) {
 }
 
 void BuddySystem::InsertBlock(Block* block) {
-  int idx = GetListIdx(block->Size());
+  int idx = ListIdx(block->Size());
   if (free_list_[idx] == NULL) {
     free_list_[idx] = block;
     return;
@@ -138,7 +167,7 @@ Block* BuddySystem::Merge(Block* block, int idx) {
 
   if (prev != NULL) {
     // If can merge with previous block, merge and remove curr block.
-    if ((prev->Data() + GetListBlockSize((size_t)idx)) == curr->Data()) {
+    if ((prev->Data() + ListBlockSize((size_t)idx)) == curr->Data()) {
       prev->SetSize(prev->Size() + curr->Size());
       prev->SetNext(curr->Next());
       curr->SetNext(NULL);
@@ -162,7 +191,7 @@ Block* BuddySystem::Merge(Block* block, int idx) {
     // check if it can be merged with next block.
     if (curr->Next() != NULL) {
       Block* next = curr->Next();
-      if ((curr->Data() + GetListBlockSize((size_t)idx)) == next->Data()) {
+      if ((curr->Data() + ListBlockSize((size_t)idx)) == next->Data()) {
         curr->SetSize(curr->Size() + next->Size());
         curr->SetNext(next->Next());
         next->SetNext(NULL);

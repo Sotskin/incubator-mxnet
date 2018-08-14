@@ -2,6 +2,7 @@
 #define MXNET_BUDDY_H_
 
 #include <cuda_runtime_api.h>
+#include <vector>
 #include <map>
 
 namespace mxnet {
@@ -22,8 +23,6 @@ class Block {
     Block* next_block_;
 }; // Class Block
 
-typedef std::map<char*, Block*> MemoryPool;
-
 static inline size_t Log2(size_t x) {
   size_t y;
   asm ( "\tbsr %1, %0\n"
@@ -35,20 +34,20 @@ static inline size_t Log2(size_t x) {
 
 class BuddySystem {
   public:
-    static const size_t MIN_ALLOC_SIZE = 128;
+    static const size_t kMinAllocateSize = 128;
     // TODO(fegin): This fixed value is not acceptable.
-    static const size_t CLEAN_UP_BOUNDRY = 500000000;
+    static const size_t kCleanUpBoundary = 500000000;
 
-    static inline size_t GetListIdx(size_t size) {
+    static inline size_t ListIdx(size_t size) {
       size_t size_log = Log2(size);
       size_log += (size_log ^ size) ? 1 : 0;
-      return size_log - Log2(MIN_ALLOC_SIZE);
+      return size_log - Log2(kMinAllocateSize);
     }
-    static inline size_t GetListSize(size_t size) {
-      return GetListIdx(size) + 1;
+    static inline size_t ListSize(size_t size) {
+      return ListIdx(size) + 1;
     }
-    static inline size_t GetListBlockSize(int idx) {
-      return 2 << (idx + Log2(MIN_ALLOC_SIZE));
+    static inline size_t ListBlockSize(int idx) {
+      return 2 << (idx + Log2(kMinAllocateSize));
     }
 
     BuddySystem(Block* start, size_t total, size_t device_id);
@@ -56,11 +55,9 @@ class BuddySystem {
     Block* GetStart() { return start_; }
     size_t GetTotal() { return total_; }
     size_t GetFree() { return free_; }
-    size_t GetAllocated() { return allocated_; }
-    int GetFreeListSize() { return free_list_size_; }
-    Block** GetFreeList() { return free_list_; }
-    MemoryPool GetMemPool() { return mem_pool_; }
-    void* Alloc(size_t size);
+    int FreeListSize() { return free_list_size_; }
+    bool TryAllocate(size_t size);
+    void* Malloc(size_t size);
     cudaError_t Free(void* ptr);
     void CleanUp();
 
@@ -74,12 +71,12 @@ class BuddySystem {
 
     size_t device_id_;
     Block* start_;
-    Block** free_list_;
+    std::vector<Block*> free_list_;
     size_t total_;
     size_t allocated_;
     size_t free_;
     int free_list_size_;
-    MemoryPool mem_pool_;
+    std::map<char*, Block*> mem_pool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

@@ -86,7 +86,7 @@ BuddyMemoryManager::BuddyMemoryManager() {
     CUDA_CALL(cudaSetDevice(device));
     CUDA_CALL(cudaMemGetInfo(&avail, &total));
     avail = static_cast<size_t>(avail * kGPUUtilRatio);
-    void* memory = NULL;
+    void* memory = nullptr;
     while (cudaMalloc((void**)&memory, avail) == cudaErrorMemoryAllocation) {
       avail -= kMB;
       if (avail == 0) {
@@ -137,6 +137,66 @@ bool BuddyMemoryManager::TryAllocate(int device_id, size_t size) {
   return buddy_[device_id]->TryAllocate(size);
 }
 
+/*
+SlabMemoryManager::SlabMemoryManager() {
+  std::cout << "Initializing Memory Manager" << std::endl;
+  buddy_.resize(NUMBER_OF_GPU);
+  for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
+    size_t avail, total;
+    CUDA_CALL(cudaSetDevice(device));
+    CUDA_CALL(cudaMemGetInfo(&avail, &total));
+    avail = static_cast<size_t>(avail * kGPUUtilRatio);
+    void* memory = nullptr;
+    while (cudaMalloc((void**)&memory, avail) == cudaErrorMemoryAllocation) {
+      avail -= kMB;
+      if (avail == 0) {
+        break;
+      }
+    }
+    CHECK(avail > 0);
+    buddy_[device] = new SlabSystem(memory, avail, device);
+    std::cout << "Slab System No." << device << " initialized with size = "
+              << avail << " bytes" << std::endl;
+  }
+  std::cout << "Memory Manager initialization completed" << std::endl;
+}
+
+SlabMemoryManager::~SlabMemoryManager() {
+  for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
+    CUDA_CALL(cudaSetDevice(device));
+    CUDA_CALL(cudaFree((void*)(buddy_[device]->Memory())));
+    delete buddy_[device];
+    buddy_[device] = nullptr;
+    std::cout << "Slab System No." << device << " destructed" << std::endl;
+  }
+}
+
+cudaError_t SlabMemoryManager::Malloc(void*& devptr, size_t size,
+                                       int device_id) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  devptr = buddy_[device_id]->Malloc(size);
+  return (devptr) ? cudaSuccess : cudaErrorMemoryAllocation;
+}
+
+cudaError_t SlabMemoryManager::Free(void* devptr, int device_id) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  buddy_[device_id]->Free(devptr);
+  return cudaSuccess;
+}
+
+//returns total memory and total free memory(not necessarily consequtive) in mmu
+cudaError_t SlabMemoryManager::MemGetInfo(int device_id, size_t* total,
+                                           size_t* free) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  buddy_[device_id]->MemoryUsage(total, free);
+  return cudaSuccess;
+}
+
+bool SlabMemoryManager::TryAllocate(int device_id, size_t size) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  return buddy_[device_id]->TryAllocate(size);
+}
+*/
 // Factory functions.
 std::shared_ptr<MemoryManager> GetMemoryManagerRef() {
   static std::shared_ptr<MemoryManager> inst;

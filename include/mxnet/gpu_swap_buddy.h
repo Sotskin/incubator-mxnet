@@ -4,23 +4,34 @@
 #include <cuda_runtime_api.h>
 #include <vector>
 #include <map>
+#include <set>
+
+#ifdef __GNUC__
+#define memlikely(x)       __builtin_expect(!!(x), 1)
+#define memunlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define memlikely(x)       (x)
+#define memunlikely(x)     (x)
+#endif
 
 namespace mxnet {
 
 class Block {
   public:
-    Block(void* data, size_t size)
-      : data_(data), size_(size), next_block_(NULL) {};
-    void* Data() { return data_; }
-    size_t Size() { return size_; }
-    Block* Next() { return next_block_; }
+    Block() : data_(nullptr), size_(0) {};
+    Block(void* data, size_t size) : data_(data), size_(size) {};
+    void* Data() const { return data_; }
+    size_t Size() const { return size_; }
     void SetSize(size_t size) { size_ = size; }
-    void SetNext(Block* b) { next_block_ = b; }
+    inline bool IsLeftBlock(const void* base, size_t block_size) const {
+      return (((size_t)data_ - (size_t)base) & block_size) == 0;
+    }
+
+    friend bool operator< (const Block& lhs, const Block& rhs);
 
   private:
     void* data_;
     std::size_t size_;
-    Block* next_block_;
 }; // Class Block
 
 static inline size_t Log2(size_t x) {
@@ -32,53 +43,68 @@ static inline size_t Log2(size_t x) {
   return y;
 }
 
+constexpr size_t Log2Const(size_t x) {
+  return (x <= 1) ? 0 : 1 + Log2Const(x >> 1);
+}
+
 class BuddySystem {
   public:
-    static const size_t kMinAllocateSize = 128;
-    // TODO(fegin): This fixed value is not acceptable.
-    static const size_t kCleanUpBoundary = 500000000;
-
-    static inline size_t ListIdx(size_t size) {
-      size_t size_log = Log2(size);
-      size_log += (size_log ^ size) ? 1 : 0;
-      return size_log - Log2(kMinAllocateSize);
-    }
-    static inline size_t ListSize(size_t size) {
-      return ListIdx(size) + 1;
-    }
-    static inline size_t ListBlockSize(int idx) {
-      return 2 << (idx + Log2(kMinAllocateSize));
-    }
-
     BuddySystem(void* memory, size_t size, size_t device_id);
     ~BuddySystem();
-    void* Memory() { return head_block_->Data(); }
+    void* Memory() { return memory_; }
     void MemoryUsage(size_t* total, size_t* free) {
       *total = total_size_;
       *free = free_size_;
     }
-    int FreeListSize() { return free_list_size_; }
     bool TryAllocate(size_t size);
     void* Malloc(size_t size);
     cudaError_t Free(void* ptr);
-    void CleanUp();
 
   private:
-    void InsertBlock(Block* block);
-    Block* Merge(Block* block, int idx);
-    void MergeFreeList();
+    static const size_t kMinAllocateSize = 1;
+    static constexpr size_t kLogBase = Log2Const(kMinAllocateSize);
+    static inline size_t AllocListIdx(size_t size) {
+      if (memunlikely(size <= kMinAllocateSize)) {
+        return 0;
+      } else {
+        size_t size_log = Log2(size);
+        size_log += (size_log ^ size) ? 1 : 0;
+        return size_log - kLogBase;
+      }
+    }
+    static inline size_t BlockListIdx(size_t size) {
+      if (memunlikely(size <= kMinAllocateSize)) {
+        return 0;
+      } else {
+        return Log2(size) - kLogBase;
+      }
+    }
+    static inline size_t ListSize(size_t size) {
+      return BlockListIdx(size) + 1;
+    }
+    static inline size_t ListBlockSize(int idx) {
+      return 1L << (idx + kLogBase);
+    }
+
+    void InsertBlock(const Block& block);
+    //void MergeBlock(std::set<Block>* free_list, size_t idx, bool reinsert);
+    //void MergeFreeList();
+    bool  MergeBlock(std::set<Block>* free_list, size_t idx);
+    void MergeFreeList(size_t idx);
+    //void CleanUp();
     void PrintFreeList();
-    void CheckDuplicate();
     void PrintMemPool();
+    void CheckDuplicate();
+    void CheckSize();
 
     size_t device_id_;
-    Block* head_block_;
-    std::vector<Block*> free_list_;
+    void* memory_;
+    std::vector<std::set<Block>> free_list_;
     size_t total_size_;
     size_t allocated_size_;
     size_t free_size_;
     int free_list_size_;
-    std::map<void*, Block*> mem_pool_;
+    std::map<void*, Block> mem_pool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

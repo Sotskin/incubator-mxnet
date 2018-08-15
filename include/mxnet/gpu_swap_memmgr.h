@@ -19,6 +19,10 @@ namespace mxnet {
 
 class MemoryManager {
   public:
+    static constexpr double kGPUUtilRatio = 0.97;
+    static const size_t kMB = 1L << 20;
+    static const size_t kGB = 1L << 30;
+
     cudaError_t Memcpy(int device_id, void* dst, const void* src, size_t count,
                        cudaMemcpyKind kind);
     cudaError_t MemcpyAsync(int device_id, void* dst, const void* src,
@@ -48,10 +52,6 @@ class CudaMemoryManager : public MemoryManager {
 
 class BuddyMemoryManager : public MemoryManager {
   public:
-    static constexpr double kGPUUtilRatio = 0.96;
-    static const size_t kMB = 1L << 20;
-    static const size_t kGB = 1L << 30;
-
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);
     cudaError_t Malloc(void*& devptr, size_t size, int device_id);
@@ -68,6 +68,23 @@ class BuddyMemoryManager : public MemoryManager {
     std::array<std::mutex, 16> mutex_;
 }; // Class BuddyMemoryManager
 
+//class SlabMemoryManager : public MemoryManager {
+  //public:
+    //cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
+    //bool TryAllocate(int device_id, size_t size);
+    //cudaError_t Malloc(void*& devptr, size_t size, int device_id);
+    //cudaError_t Free(void* devptr, int device_id);
+
+    //friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+
+  //private:
+    //SlabMemoryManager();
+    //~SlabMemoryManager();
+
+    //std::vector<SlabSystem*> buddy_;
+    //// Note that this line means we assume there will no more than 16 GPUs.
+    //std::array<std::mutex, 16> mutex_;
+//}; // Class SlabMemoryManager
 std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 MemoryManager* GetMemoryManager();
 

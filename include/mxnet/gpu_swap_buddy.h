@@ -34,20 +34,24 @@ static inline size_t Log2(size_t x) {
 
 class BuddySystem {
   public:
-    static const size_t kMinAllocateSize = 1024;
+    static const size_t kMinAllocateSize = 128;
     // TODO(fegin): This fixed value is not acceptable.
     static const size_t kCleanUpBoundary = 500000000;
 
     static inline size_t ListIdx(size_t size, bool carry=false) {
-      size_t size_log = Log2(size);
-      size_log += (size_log ^ size && carry) ? 1 : 0;
-      return size_log - Log2(kMinAllocateSize);
+      if (size <= kMinAllocateSize) {
+        return 0;
+      } else {
+        size_t size_log = Log2(size);
+        size_log += (size_log ^ size && carry) ? 1 : 0;
+        return size_log - Log2(kMinAllocateSize);
+      }
     }
     static inline size_t ListSize(size_t size) {
       return ListIdx(size) + 1;
     }
     static inline size_t ListBlockSize(int idx) {
-      return 2 << (idx + Log2(kMinAllocateSize));
+      return 1L << (idx + Log2(kMinAllocateSize));
     }
 
     BuddySystem(void* memory, size_t size, size_t device_id);

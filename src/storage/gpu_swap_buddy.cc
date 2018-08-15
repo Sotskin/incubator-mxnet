@@ -16,7 +16,6 @@ BuddySystem::BuddySystem(void* memory, size_t size, size_t device_id)
   : device_id_(device_id), total_size_(size), allocated_size_(0),
     free_size_(size) {
   free_list_size_ = ListSize(size);
-  CHECK(free_list_size_ > 0);
   free_list_.resize(free_list_size_);
   memory_ = memory;
   free_list_[free_list_size_ - 1].insert(Block(memory, size));
@@ -51,18 +50,19 @@ void* BuddySystem::Malloc(size_t size) {
   int list_idx = ListIdx(size, true);
   int curr_idx = list_idx;
 
-  while (curr_idx < free_list_size_ && free_list_[list_idx].size() == 0) {
+  while (curr_idx < free_list_size_ && free_list_[curr_idx].size() == 0) {
     curr_idx++;
   }
-  while (curr_idx > list_idx) {
-    auto victim_it = free_list_[curr_idx].begin();
-    size_t block_size = ListBlockSize(curr_idx - 1);
-    InsertBlock(Block(victim_it->Data(), block_size));
-    InsertBlock(Block((char*)victim_it->Data() + block_size,
-                      victim_it->Size() - block_size));
-    free_list_[curr_idx].erase(victim_it);
-  }
   if (curr_idx < free_list_size_) {
+    while (curr_idx > list_idx) {
+      auto victim_it = free_list_[curr_idx].begin();
+      size_t block_size = ListBlockSize(curr_idx - 1);
+      InsertBlock(Block(victim_it->Data(), block_size));
+      InsertBlock(Block((char*)victim_it->Data() + block_size,
+                        victim_it->Size() - block_size));
+      free_list_[curr_idx].erase(victim_it);
+      curr_idx--;
+    }
     Block allocated_block = *(free_list_[list_idx].begin());
     free_list_[list_idx].erase(free_list_[list_idx].begin());
     allocated_size_ += allocated_block.Size();
@@ -122,7 +122,7 @@ void BuddySystem::MergeFreeList() {
 }
 
 void BuddySystem::CleanUp() {
-  std::cout << "Before the clean up: " << std::endl;
+  //std::cout << "Before the clean up: " << std::endl;
   PrintFreeList();
   //insert all nodes in the free list into a temp list
   std::set<Block> temp_list;
@@ -136,7 +136,7 @@ void BuddySystem::CleanUp() {
   for (auto& block : temp_list) {
     InsertBlock(block);
   }
-  std::cout << "After the clean up: " << std::endl;
+  //std::cout << "After the clean up: " << std::endl;
   PrintFreeList();
 }
 

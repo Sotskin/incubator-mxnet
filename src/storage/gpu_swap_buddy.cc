@@ -85,9 +85,6 @@ cudaError_t BuddySystem::Free(void* ptr) {
   allocated_size_ -= iter->second.Size();
   free_size_ += iter->second.Size();
   InsertBlock(iter->second);
-  //MergeFreeList();
-  //size_t idx = BlockListIdx(iter->second.Size());
-  //MergeBlock(&(free_list_[idx]), idx, false);
   MergeFreeList(BlockListIdx(iter->second.Size()));
   mem_pool_.erase(iter);
   CheckSize();
@@ -95,53 +92,6 @@ cudaError_t BuddySystem::Free(void* ptr) {
   return cudaSuccess;
 }
 
-#if 0
-void BuddySystem::MergeBlock(std::set<Block>* free_list, size_t idx,
-                             bool reinsert=true) {
-  if (free_list->size() <= 1) {
-    return;
-  }
-  std::set<Block>::iterator iter = free_list->begin();
-#if 1
-  size_t block_size = ListBlockSize(idx);
-  while (iter != free_list->end()) {
-    const Block &block = *iter;
-    if (iter->IsLeftBlock(memory_, block_size)) {
-      std::set<Block>::iterator next_iter = std::next(iter, 1);
-      if (next_iter != free_list->end() &&
-          (char*)iter->Data() + iter->Size() == (char*)next_iter->Data()) {
-        // A trick to workaround constness of std::set elements.
-        (const_cast<Block&>(block)).SetSize(iter->Size() + next_iter->Size());
-        InsertBlock(block);
-        free_list->erase(iter);
-        iter = free_list->erase(next_iter);
-        continue;
-      }
-    }
-    iter++;
-  }
-#else
-  size_t block_size = ListBlockSize(idx + 1);
-  while (iter != free_list->end()) {
-    std::set<Block>::iterator next_iter = std::next(iter, 1);
-    if (next_iter != free_list->end() &&
-        (char*)iter->Data() + iter->Size() == (char*)next_iter->Data()) {
-      size_t size = iter->Size() + next_iter->Size();
-      // A trick to workaround constness of std::set elements.
-      const Block &block = *iter;
-      (const_cast<Block&>(block)).SetSize(size);
-      free_list->erase(next_iter);
-    } else {
-      if (reinsert && iter->Size() >= block_size) {
-        InsertBlock(*iter);
-        free_list->erase(iter);
-      }
-      iter = next_iter;
-    }
-  }
-#endif
-}
-#endif
 bool BuddySystem::MergeBlock(std::set<Block>* free_list, size_t idx) {
   if (free_list->size() <= 1) {
     return false;
@@ -174,24 +124,6 @@ void BuddySystem::MergeFreeList(size_t idx) {
     }
   }
 }
-
-#if 0
-void BuddySystem::CleanUp() {
-  //insert all nodes in the free list into a temp list
-  std::set<Block> temp_list;
-  for (int i = 0; i < free_list_size_ - 1; i++) {
-    temp_list.insert(free_list_[i].begin(), free_list_[i].end());
-    free_list_[i].clear();
-  }
-  //merge the nodes in the temp list
-  MergeBlock(&temp_list, 0, false);
-  //insert the nodes in the temp list back into the free list
-  for (auto& block : temp_list) {
-    InsertBlock(block);
-  }
-  CheckSize();
-}
-#endif
 
 void BuddySystem::CheckSize() {
 #if BUDDY_DEBUG

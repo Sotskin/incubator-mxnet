@@ -61,7 +61,7 @@ class BuddySystem {
     cudaError_t Free(void* ptr);
 
   private:
-    static const size_t kMinAllocateSize = 1;
+    static const size_t kMinAllocateSize = 64;
     static constexpr size_t kLogBase = Log2Const(kMinAllocateSize);
     static inline size_t AllocListIdx(size_t size) {
       if (memunlikely(size <= kMinAllocateSize)) {
@@ -87,11 +87,8 @@ class BuddySystem {
     }
 
     void InsertBlock(const Block& block);
-    //void MergeBlock(std::set<Block>* free_list, size_t idx, bool reinsert);
-    //void MergeFreeList();
-    bool  MergeBlock(std::set<Block>* free_list, size_t idx);
+    bool MergeBlock(std::set<Block>* free_list, size_t idx);
     void MergeFreeList(size_t idx);
-    //void CleanUp();
     void PrintFreeList();
     void PrintMemPool();
     void CheckDuplicate();

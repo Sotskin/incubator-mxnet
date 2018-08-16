@@ -4,14 +4,15 @@
 #include <cuda_runtime_api.h>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <set>
 
 #ifdef __GNUC__
-#define memlikely(x)       __builtin_expect(!!(x), 1)
-#define memunlikely(x)     __builtin_expect(!!(x), 0)
+#define mem_likely(x)       __builtin_expect(!!(x), 1)
+#define mem_unlikely(x)     __builtin_expect(!!(x), 0)
 #else
-#define memlikely(x)       (x)
-#define memunlikely(x)     (x)
+#define mem_likely(x)       (x)
+#define mem_unlikely(x)     (x)
 #endif
 
 namespace mxnet {
@@ -64,7 +65,7 @@ class BuddySystem {
     static const size_t kMinAllocateSize = 1;
     static constexpr size_t kLogBase = Log2Const(kMinAllocateSize);
     static inline size_t AllocListIdx(size_t size) {
-      if (memunlikely(size <= kMinAllocateSize)) {
+      if (mem_unlikely(size <= kMinAllocateSize)) {
         return 0;
       } else {
         size_t size_log = Log2(size);
@@ -73,7 +74,7 @@ class BuddySystem {
       }
     }
     static inline size_t BlockListIdx(size_t size) {
-      if (memunlikely(size <= kMinAllocateSize)) {
+      if (mem_unlikely(size <= kMinAllocateSize)) {
         return 0;
       } else {
         return Log2(size) - kLogBase;
@@ -87,11 +88,8 @@ class BuddySystem {
     }
 
     void InsertBlock(const Block& block);
-    //void MergeBlock(std::set<Block>* free_list, size_t idx, bool reinsert);
-    //void MergeFreeList();
-    bool  MergeBlock(std::set<Block>* free_list, size_t idx);
+    bool MergeBlock(std::set<Block>* free_list, size_t idx);
     void MergeFreeList(size_t idx);
-    //void CleanUp();
     void PrintFreeList();
     void PrintMemPool();
     void CheckDuplicate();
@@ -104,7 +102,7 @@ class BuddySystem {
     size_t allocated_size_;
     size_t free_size_;
     int free_list_size_;
-    std::map<void*, Block> mem_pool_;
+    std::unordered_map<void*, Block> mem_pool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

@@ -19,7 +19,7 @@ namespace mxnet {
 
 class MemoryManager {
   public:
-    static constexpr double kGPUUtilRatio = 0.97;
+    static constexpr double kGPUUtilRatio = 0.95;
     static const size_t kMB = 1L << 20;
     static const size_t kGB = 1L << 30;
 

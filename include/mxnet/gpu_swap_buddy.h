@@ -6,6 +6,14 @@
 #include <map>
 #include <set>
 
+#ifdef __GNUC__
+#define memlikely(x)       __builtin_expect(!!(x), 1)
+#define memunlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define memlikely(x)       (x)
+#define memunlikely(x)     (x)
+#endif
+
 namespace mxnet {
 
 class Block {
@@ -15,6 +23,9 @@ class Block {
     void* Data() const { return data_; }
     size_t Size() const { return size_; }
     void SetSize(size_t size) { size_ = size; }
+    inline bool IsLeftBlock(const void* base, size_t block_size) const {
+      return (((size_t)data_ - (size_t)base) & block_size) == 0;
+    }
 
     friend bool operator< (const Block& lhs, const Block& rhs);
 
@@ -32,28 +43,12 @@ static inline size_t Log2(size_t x) {
   return y;
 }
 
+constexpr size_t Log2Const(size_t x) {
+  return (x <= 1) ? 0 : 1 + Log2Const(x >> 1);
+}
+
 class BuddySystem {
   public:
-    static const size_t kMinAllocateSize = 128;
-    // TODO(fegin): This fixed value is not acceptable.
-    static const size_t kCleanUpBoundary = 500000000;
-
-    static inline size_t ListIdx(size_t size, bool carry=false) {
-      if (size <= kMinAllocateSize) {
-        return 0;
-      } else {
-        size_t size_log = Log2(size);
-        size_log += (size_log ^ size && carry) ? 1 : 0;
-        return size_log - Log2(kMinAllocateSize);
-      }
-    }
-    static inline size_t ListSize(size_t size) {
-      return ListIdx(size) + 1;
-    }
-    static inline size_t ListBlockSize(int idx) {
-      return 1L << (idx + Log2(kMinAllocateSize));
-    }
-
     BuddySystem(void* memory, size_t size, size_t device_id);
     ~BuddySystem();
     void* Memory() { return memory_; }
@@ -61,19 +56,46 @@ class BuddySystem {
       *total = total_size_;
       *free = free_size_;
     }
-    int FreeListSize() { return free_list_size_; }
     bool TryAllocate(size_t size);
     void* Malloc(size_t size);
     cudaError_t Free(void* ptr);
 
   private:
+    static const size_t kMinAllocateSize = 1;
+    static constexpr size_t kLogBase = Log2Const(kMinAllocateSize);
+    static inline size_t AllocListIdx(size_t size) {
+      if (memunlikely(size <= kMinAllocateSize)) {
+        return 0;
+      } else {
+        size_t size_log = Log2(size);
+        size_log += (size_log ^ size) ? 1 : 0;
+        return size_log - kLogBase;
+      }
+    }
+    static inline size_t BlockListIdx(size_t size) {
+      if (memunlikely(size <= kMinAllocateSize)) {
+        return 0;
+      } else {
+        return Log2(size) - kLogBase;
+      }
+    }
+    static inline size_t ListSize(size_t size) {
+      return BlockListIdx(size) + 1;
+    }
+    static inline size_t ListBlockSize(int idx) {
+      return 1L << (idx + kLogBase);
+    }
+
     void InsertBlock(const Block& block);
-    void MergeBlock(std::set<Block>* free_list, size_t idx, bool reinsert);
-    void MergeFreeList();
-    void CleanUp();
+    //void MergeBlock(std::set<Block>* free_list, size_t idx, bool reinsert);
+    //void MergeFreeList();
+    bool  MergeBlock(std::set<Block>* free_list, size_t idx);
+    void MergeFreeList(size_t idx);
+    //void CleanUp();
     void PrintFreeList();
-    void CheckDuplicate();
     void PrintMemPool();
+    void CheckDuplicate();
+    void CheckSize();
 
     size_t device_id_;
     void* memory_;

@@ -4,14 +4,15 @@
 #include <cuda_runtime_api.h>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <set>
 
 #ifdef __GNUC__
-#define memlikely(x)       __builtin_expect(!!(x), 1)
-#define memunlikely(x)     __builtin_expect(!!(x), 0)
+#define mem_likely(x)       __builtin_expect(!!(x), 1)
+#define mem_unlikely(x)     __builtin_expect(!!(x), 0)
 #else
-#define memlikely(x)       (x)
-#define memunlikely(x)     (x)
+#define mem_likely(x)       (x)
+#define mem_unlikely(x)     (x)
 #endif
 
 namespace mxnet {
@@ -61,10 +62,10 @@ class BuddySystem {
     cudaError_t Free(void* ptr);
 
   private:
-    static const size_t kMinAllocateSize = 64;
+    static const size_t kMinAllocateSize = 1;
     static constexpr size_t kLogBase = Log2Const(kMinAllocateSize);
     static inline size_t AllocListIdx(size_t size) {
-      if (memunlikely(size <= kMinAllocateSize)) {
+      if (mem_unlikely(size <= kMinAllocateSize)) {
         return 0;
       } else {
         size_t size_log = Log2(size);
@@ -73,7 +74,7 @@ class BuddySystem {
       }
     }
     static inline size_t BlockListIdx(size_t size) {
-      if (memunlikely(size <= kMinAllocateSize)) {
+      if (mem_unlikely(size <= kMinAllocateSize)) {
         return 0;
       } else {
         return Log2(size) - kLogBase;
@@ -101,7 +102,7 @@ class BuddySystem {
     size_t allocated_size_;
     size_t free_size_;
     int free_list_size_;
-    std::map<void*, Block> mem_pool_;
+    std::unordered_map<void*, Block> mem_pool_;
 }; //Class BuddySystem
 
 } //namespace mxnet

@@ -8,6 +8,7 @@
 
 #define BUDDY_DEBUG 0
 
+std::unordered_map<size_t, int>counters;
 namespace mxnet {
 
 bool operator< (const Block& lhs, const Block& rhs) {
@@ -49,39 +50,38 @@ void* BuddySystem::Malloc(size_t size) {
   if (curr_idx < free_list_size_) {
     while (curr_idx > list_idx) {
       auto victim_it = free_list_[curr_idx].begin();
-      size_t block_size = ListBlockSize(curr_idx - 1);
-      InsertBlock(Block(victim_it->Data(), block_size));
-      InsertBlock(Block((char*)victim_it->Data() + block_size,
-                        victim_it->Size() - block_size));
+      size_t split_block_size = ListBlockSize(curr_idx - 1);
+      InsertBlock(Block(victim_it->Data(), split_block_size));
+      InsertBlock(Block((char*)victim_it->Data() + split_block_size,
+                        victim_it->Size() - split_block_size));
       free_list_[curr_idx].erase(victim_it);
       curr_idx--;
     }
     size_t block_size = ListBlockSize(list_idx);
-    Block allocated_block = *(free_list_[list_idx].begin());
-    free_list_[list_idx].erase(free_list_[list_idx].begin());
-    if (allocated_block.Size() > block_size) {
-      InsertBlock(Block((char*)allocated_block.Data() + block_size,
-                        allocated_block.Size() - block_size));
-      allocated_block.SetSize(block_size);
+    auto allocated_it = free_list_[list_idx].begin();
+    if (allocated_it->Size() > block_size) {
+      InsertBlock(Block((char*)allocated_it->Data() + block_size,
+                        allocated_it->Size() - block_size));
     }
     allocated_size_ += block_size;
     free_size_ -= block_size;
-    CHECK(mem_pool_.find(allocated_block.Data()) == mem_pool_.end());
-    mem_pool_[allocated_block.Data()] = allocated_block;
-    return allocated_block.Data();
+    CHECK(mem_pool_.find(allocated_it->Data()) == mem_pool_.end());
+    mem_pool_[allocated_it->Data()] = Block(allocated_it->Data(), block_size);
+    void* ret = allocated_it->Data();
+    free_list_[list_idx].erase(allocated_it);
+    counters[size] += 1;
+    return ret;
   } else {
     return nullptr;
   }
 }
 
 cudaError_t BuddySystem::Free(void* ptr) {
-  static int count = 0;
   auto iter = mem_pool_.find(ptr);
   if (iter == mem_pool_.end()) {
     CHECK(iter != mem_pool_.end());
     return cudaErrorInvalidValue;
   }
-  count += 1;
   allocated_size_ -= iter->second.Size();
   free_size_ += iter->second.Size();
   InsertBlock(iter->second);
@@ -89,6 +89,7 @@ cudaError_t BuddySystem::Free(void* ptr) {
   mem_pool_.erase(iter);
   CheckSize();
   //PrintFreeList();
+  //std::cout << counters.size() << std::endl;
   return cudaSuccess;
 }
 
@@ -96,11 +97,10 @@ bool BuddySystem::MergeBlock(std::set<Block>* free_list, size_t idx) {
   if (free_list->size() <= 1) {
     return false;
   }
-  std::set<Block>::iterator iter = free_list->begin();
   size_t block_size = ListBlockSize(idx);
   for (auto iter = free_list->begin(); iter != free_list->end(); iter++) {
     if (iter->IsLeftBlock(memory_, block_size)) {
-      std::set<Block>::iterator next_iter = std::next(iter, 1);
+      auto next_iter = std::next(iter, 1);
       if (next_iter != free_list->end() &&
           (char*)iter->Data() + iter->Size() == (char*)next_iter->Data()) {
         // A trick to workaround constness of std::set elements.

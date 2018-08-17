@@ -34,10 +34,10 @@ bool BuddySystem::TryAllocate(size_t size) {
   }
   return false;
 }
-
-void BuddySystem::InsertBlock(const Block& block) {
+std::set<Block>::iterator BuddySystem::InsertBlock(const Block& block) {
   int idx = BlockListIdx(block.Size());
-  free_list_[idx].insert(block);
+  auto ret = free_list_[idx].insert(block);
+  return ret.first;
 }
 
 void* BuddySystem::Malloc(size_t size) {
@@ -84,8 +84,7 @@ cudaError_t BuddySystem::Free(void* ptr) {
   }
   allocated_size_ -= iter->second.Size();
   free_size_ += iter->second.Size();
-  InsertBlock(iter->second);
-  MergeFreeList(BlockListIdx(iter->second.Size()));
+  MergeBlock(InsertBlock(iter->second), BlockListIdx(iter->second.Size()));
   mem_pool_.erase(iter);
   CheckSize();
   //PrintFreeList();
@@ -93,35 +92,40 @@ cudaError_t BuddySystem::Free(void* ptr) {
   return cudaSuccess;
 }
 
-bool BuddySystem::MergeBlock(std::set<Block>* free_list, size_t idx) {
-  if (free_list->size() <= 1) {
-    return false;
-  }
+void BuddySystem::MergeBlock(std::set<Block>::iterator iter, int idx) {
   size_t block_size = ListBlockSize(idx);
-  for (auto iter = free_list->begin(); iter != free_list->end(); iter++) {
+  while (idx < free_list_size_ - 1) {
     if (iter->IsLeftBlock(memory_, block_size)) {
       auto next_iter = std::next(iter, 1);
-      if (next_iter != free_list->end() &&
+      if (next_iter != free_list_[idx].end() &&
           (char*)iter->Data() + iter->Size() == (char*)next_iter->Data()) {
         // A trick to workaround constness of std::set elements.
         const Block &block = *iter;
         (const_cast<Block&>(block)).SetSize(iter->Size() + next_iter->Size());
-        InsertBlock(block);
-        free_list->erase(iter);
-        free_list->erase(next_iter);
-        return true;
+        auto new_iter = InsertBlock(block);
+        free_list_[idx].erase(iter);
+        free_list_[idx].erase(next_iter);
+        iter = new_iter;
+      } else {
+        break;
+      }
+    } else {
+      auto prev_iter = std::prev(iter, 1);
+      if (iter != free_list_[idx].begin() &&
+          (char*)prev_iter->Data() + prev_iter->Size() == (char*)iter->Data()) {
+        // A trick to workaround constness of std::set elements.
+        const Block &block = *prev_iter;
+        (const_cast<Block&>(block)).SetSize(prev_iter->Size() + iter->Size());
+        auto new_iter = InsertBlock(block);
+        free_list_[idx].erase(prev_iter);
+        free_list_[idx].erase(iter);
+        iter = new_iter;
+      } else {
+        break;
       }
     }
-  }
-  return false;
-}
-
-void BuddySystem::MergeFreeList(size_t idx) {
-  // We can't merge blocks, if any, inthe last free_list.
-  for (size_t i = idx; i < (size_t)free_list_size_ - 1; i++) {
-    if (!MergeBlock(&(free_list_[i]), (size_t)i)) {
-      break;
-    }
+    idx += 1;
+    block_size <<= 1;
   }
 }
 

@@ -87,9 +87,8 @@ class BuddySystem {
       return 1L << (idx + kLogBase);
     }
 
-    void InsertBlock(const Block& block);
-    bool MergeBlock(std::set<Block>* free_list, size_t idx);
-    void MergeFreeList(size_t idx);
+    std::set<Block>::iterator InsertBlock(const Block& block);
+    void MergeBlock(std::set<Block>::iterator iter, int idx);
     void PrintFreeList();
     void PrintMemPool();
     void CheckDuplicate();

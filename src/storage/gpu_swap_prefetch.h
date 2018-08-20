@@ -1,12 +1,12 @@
 #ifndef GPU_SWAP_PREFETCH_H
 #define GPU_SWAP_PREFETCH_H
 
-#include <mxnet/gpu_swap_history.h>
 #include <thread>
 
 #if MXNET_USE_CUDA
 #include <cuda_runtime.h>
 #endif
+#include "./gpu_swap_history.h"
 
 namespace mxnet {
 

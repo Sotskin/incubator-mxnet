@@ -28,7 +28,7 @@
 #include <atomic>
 #include <memory>
 #include "./base.h"
-#include "./gpu_swap.h"
+#include "../../src/storage/gpu_swap.h"
 
 namespace mxnet {
 

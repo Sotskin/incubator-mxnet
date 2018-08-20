@@ -9,11 +9,11 @@
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
-#include <mxnet/gpu_swap_history.h>
-#include <mxnet/gpu_swap_memmgr.h>
 #if MXNET_USE_CUDA
-#include "./cuda_runtime.h"
+#include <cuda_runtime.h>
 #endif // MXNET_USE_CUDA
+#include "./gpu_swap_history.h"
+#include "./gpu_swap_memmgr.h"
 
 namespace mxnet {
 

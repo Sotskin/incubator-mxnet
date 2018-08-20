@@ -55,11 +55,12 @@ class BuddySystem {
     void* Memory() { return memory_; }
     void MemoryUsage(size_t* total, size_t* free) {
       *total = total_size_;
-      *free = free_size_;
+      *free = available_size_;
     }
     bool TryAllocate(size_t size);
     void* Malloc(size_t size);
     cudaError_t Free(void* ptr);
+    void Statistics();
 
   private:
     static const size_t kMinAllocateSize = 1;
@@ -96,12 +97,13 @@ class BuddySystem {
 
     size_t device_id_;
     void* memory_;
+    std::unordered_map<void*, Block> mem_pool_;
     std::vector<std::set<Block>> free_list_;
+    int free_list_size_;
     size_t total_size_;
     size_t allocated_size_;
-    size_t free_size_;
-    int free_list_size_;
-    std::unordered_map<void*, Block> mem_pool_;
+    size_t available_size_;
+    size_t merge_count_;
 }; //Class BuddySystem
 
 } //namespace mxnet

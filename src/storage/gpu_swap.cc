@@ -1,7 +1,7 @@
-#include <mxnet/gpu_swap.h>
 #include <dmlc/logging.h>
 #include <dmlc/parameter.h>
 #include "../common/cuda_utils.h"
+#include "gpu_swap.h"
 
 namespace mxnet{
 

@@ -9,8 +9,9 @@
 #include <set>
 #include <dmlc/parameter.h>
 #include <dmlc/logging.h>
-#include <mxnet/gpu_swap_history.h>
+#include "./gpu_swap_history.h"
 #include "./gpu_swap_prefetch.h"
+#include "./gpu_swap_memmgr.h"
 
 namespace mxnet {
 
@@ -336,6 +337,7 @@ void MemoryHistory::Statistics() {
               << "=> Total swap out size: "
               << history.swap_out_total / 1e9 << "GB " << std::endl;
   }
+  GetMemoryManager()->Statistics();
 }
 
 double MemoryHistory::LCS_Similarity(std::vector<MemRecord>& base,

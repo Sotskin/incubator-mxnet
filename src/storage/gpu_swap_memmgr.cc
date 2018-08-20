@@ -5,8 +5,8 @@
 #include <dmlc/logging.h>
 #include <math.h>
 
-#include <mxnet/gpu_swap_memmgr.h>
 #include "../common/cuda_utils.h"
+#include "./gpu_swap_memmgr.h"
 
 namespace mxnet {
 
@@ -39,25 +39,37 @@ cudaError_t MemoryManager::StreamSynchronize(int device_id,
   return cudaSuccess;
 }
 
+cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int device_id) {
+  malloc_count_[device_id]++;
+  malloc_size_[device_id] += size;
+  return this->MallocInternal(devptr, size, device_id);
+}
+
+cudaError_t MemoryManager::Free(void* devptr, int device_id) {
+  free_count_[device_id]++;
+  return this->FreeInternal(devptr, device_id);
+}
+
+void MemoryManager::Statistics() {
+  for (int i = 0; i < NUMBER_OF_GPU; i++) {
+    std::cout << "MemoryManager Statistics " << i << " :" << std::endl
+              << "Malloc count: " << malloc_count_[i] << std::endl
+              << "Malloc size: " << malloc_size_[i] << std::endl
+              << "Free count: " << free_count_[i] << std::endl;
+    malloc_count_[i] = malloc_size_[i] = free_count_[i] = 0;
+  }
+  this->StatisticsInternal();
+}
+
 CudaMemoryManager::CudaMemoryManager() {
   std::cout << "Initialize CUDA Memory Allocator" << std::endl;
+  malloc_count_.resize(NUMBER_OF_GPU);
+  malloc_size_.resize(NUMBER_OF_GPU);
+  free_count_.resize(NUMBER_OF_GPU);
 }
 
 CudaMemoryManager::~CudaMemoryManager() {
   std::cout << "Destroy Cuda Memory Allocator" << std::endl;
-}
-
-cudaError_t CudaMemoryManager::Malloc(void*& devptr, size_t size,
-                                      int device_id) {
-  CUDA_CALL(cudaSetDevice(device_id));
-  CUDA_CALL(cudaMalloc(&devptr, size));
-  return cudaSuccess;
-}
-
-cudaError_t CudaMemoryManager::Free(void* devptr, int device_id) {
-  CUDA_CALL(cudaSetDevice(device_id));
-  CUDA_CALL(cudaFree(devptr));
-  return cudaSuccess;
 }
 
 cudaError_t CudaMemoryManager::MemGetInfo(int device_id, size_t* total,
@@ -78,9 +90,28 @@ bool CudaMemoryManager::TryAllocate(int device_id, size_t size) {
   return free > size + 1500000000;
 }
 
+cudaError_t CudaMemoryManager::MallocInternal(void*& devptr, size_t size,
+                                              int device_id) {
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaMalloc(&devptr, size));
+  return cudaSuccess;
+}
+
+cudaError_t CudaMemoryManager::FreeInternal(void* devptr, int device_id) {
+  CUDA_CALL(cudaSetDevice(device_id));
+  CUDA_CALL(cudaFree(devptr));
+  return cudaSuccess;
+}
+
+void CudaMemoryManager::StatisticsInternal() {
+}
+
 BuddyMemoryManager::BuddyMemoryManager() {
   std::cout << "Initializing Memory Manager" << std::endl;
   buddy_.resize(NUMBER_OF_GPU);
+  malloc_count_.resize(NUMBER_OF_GPU);
+  malloc_size_.resize(NUMBER_OF_GPU);
+  free_count_.resize(NUMBER_OF_GPU);
   for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
     size_t avail, total;
     CUDA_CALL(cudaSetDevice(device));
@@ -111,20 +142,6 @@ BuddyMemoryManager::~BuddyMemoryManager() {
   }
 }
 
-cudaError_t BuddyMemoryManager::Malloc(void*& devptr, size_t size,
-                                       int device_id) {
-  std::lock_guard<std::mutex> lock(mutex_[device_id]);
-  devptr = buddy_[device_id]->Malloc(size);
-  return (devptr) ? cudaSuccess : cudaErrorMemoryAllocation;
-}
-
-cudaError_t BuddyMemoryManager::Free(void* devptr, int device_id) {
-  std::lock_guard<std::mutex> lock(mutex_[device_id]);
-  buddy_[device_id]->Free(devptr);
-  return cudaSuccess;
-}
-
-//returns total memory and total free memory(not necessarily consequtive) in mmu
 cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
                                            size_t* free) {
   std::lock_guard<std::mutex> lock(mutex_[device_id]);
@@ -135,6 +152,25 @@ cudaError_t BuddyMemoryManager::MemGetInfo(int device_id, size_t* total,
 bool BuddyMemoryManager::TryAllocate(int device_id, size_t size) {
   std::lock_guard<std::mutex> lock(mutex_[device_id]);
   return buddy_[device_id]->TryAllocate(size);
+}
+
+cudaError_t BuddyMemoryManager::MallocInternal(void*& devptr, size_t size,
+                                               int device_id) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  devptr = buddy_[device_id]->Malloc(size);
+  return (devptr) ? cudaSuccess : cudaErrorMemoryAllocation;
+}
+
+cudaError_t BuddyMemoryManager::FreeInternal(void* devptr, int device_id) {
+  std::lock_guard<std::mutex> lock(mutex_[device_id]);
+  buddy_[device_id]->Free(devptr);
+  return cudaSuccess;
+}
+
+void BuddyMemoryManager::StatisticsInternal() {
+  for (int i = 0; i < NUMBER_OF_GPU; i++) {
+    buddy_[i]->Statistics();
+  }
 }
 
 /*

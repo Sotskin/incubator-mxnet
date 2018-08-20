@@ -32,11 +32,15 @@ class MemoryManager {
     virtual cudaError_t MemGetInfo(int device_id, size_t* total,
                                    size_t* free) = 0;
     virtual bool TryAllocate(int device_id, size_t size) = 0;
-    virtual cudaError_t Malloc(void*& devptr, size_t size, int device_id) = 0;
-    virtual cudaError_t Free(void* devptr, int device_id) = 0;
-    virtual void Statistics() = 0;
+    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
+    cudaError_t Free(void* devptr, int device_id);
+    void Statistics();
 
   protected:
+    virtual cudaError_t MallocInternal(void*& devptr, size_t size,
+                                       int device_id) = 0;
+    virtual cudaError_t FreeInternal(void* devptr, int device_id) = 0;
+    virtual void StatisticsInternal() = 0;
     std::vector<size_t> malloc_count_;
     std::vector<size_t> malloc_size_;
     std::vector<size_t> free_count_;
@@ -47,11 +51,13 @@ class CudaMemoryManager : public MemoryManager {
   public:
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);
-    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
-    cudaError_t Free(void* devptr, int device_id);
-    void Statistics();
 
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+
+  protected:
+    cudaError_t MallocInternal(void*& devptr, size_t size, int device_id);
+    cudaError_t FreeInternal(void* devptr, int device_id);
+    void StatisticsInternal();
 
   private:
     CudaMemoryManager();
@@ -62,11 +68,13 @@ class BuddyMemoryManager : public MemoryManager {
   public:
     cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     bool TryAllocate(int device_id, size_t size);
-    cudaError_t Malloc(void*& devptr, size_t size, int device_id);
-    cudaError_t Free(void* devptr, int device_id);
-    void Statistics();
 
     friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+
+  protected:
+    cudaError_t MallocInternal(void*& devptr, size_t size, int device_id);
+    cudaError_t FreeInternal(void* devptr, int device_id);
+    void StatisticsInternal();
 
   private:
     BuddyMemoryManager();

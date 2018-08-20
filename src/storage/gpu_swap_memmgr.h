@@ -1,6 +1,7 @@
 #ifndef MXNET_GPU_SWAP_MEMMGR_H_
 #define MXNET_GPU_SWAP_MEMMGR_H_
 
+#include <atomic>
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <map>
@@ -41,9 +42,9 @@ class MemoryManager {
                                        int device_id) = 0;
     virtual cudaError_t FreeInternal(void* devptr, int device_id) = 0;
     virtual void StatisticsInternal() = 0;
-    std::vector<size_t> malloc_count_;
-    std::vector<size_t> malloc_size_;
-    std::vector<size_t> free_count_;
+    std::array<std::atomic_size_t, 16> malloc_count_;
+    std::array<std::atomic_size_t, 16> malloc_size_;
+    std::array<std::atomic_size_t, 16> free_count_;
     //std::vector<size_t> free_size_;
 }; // Class MemoryManager
 

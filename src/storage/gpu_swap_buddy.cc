@@ -63,6 +63,7 @@ void* BuddySystem::Malloc(size_t size) {
                         allocated_it->Size() - block_size));
     }
     allocated_size_ += block_size;
+    total_allocated_size_ += block_size;
     available_size_ -= block_size;
     CHECK(mem_pool_.find(allocated_it->Data()) == mem_pool_.end());
     mem_pool_[allocated_it->Data()] = Block(allocated_it->Data(), block_size);
@@ -90,9 +91,11 @@ cudaError_t BuddySystem::Free(void* ptr) {
 
 void BuddySystem::Statistics() {
   std::cout << "BuddySystem:" << std::endl
+            << "Total allocated count: " << total_allocated_size_ << std::endl
             << "Merge count: " << merge_count_ << std::endl;
   PrintFreeList();
   merge_count_ = 0;
+  total_allocated_size_ = 0;
 }
 
 void BuddySystem::MergeBlock(std::set<Block>::iterator iter, int idx) {

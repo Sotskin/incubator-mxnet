@@ -63,9 +63,6 @@ void MemoryManager::Statistics() {
 
 CudaMemoryManager::CudaMemoryManager() {
   std::cout << "Initialize CUDA Memory Allocator" << std::endl;
-  malloc_count_.resize(NUMBER_OF_GPU);
-  malloc_size_.resize(NUMBER_OF_GPU);
-  free_count_.resize(NUMBER_OF_GPU);
 }
 
 CudaMemoryManager::~CudaMemoryManager() {
@@ -109,9 +106,6 @@ void CudaMemoryManager::StatisticsInternal() {
 BuddyMemoryManager::BuddyMemoryManager() {
   std::cout << "Initializing Memory Manager" << std::endl;
   buddy_.resize(NUMBER_OF_GPU);
-  malloc_count_.resize(NUMBER_OF_GPU);
-  malloc_size_.resize(NUMBER_OF_GPU);
-  free_count_.resize(NUMBER_OF_GPU);
   for (size_t device = 0; device < NUMBER_OF_GPU; device++) {
     size_t avail, total;
     CUDA_CALL(cudaSetDevice(device));

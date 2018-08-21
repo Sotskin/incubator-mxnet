@@ -5,9 +5,9 @@
 #include <map>
 #include <dmlc/parameter.h>
 #include <dmlc/logging.h>
-#include "./gpu_swap.h"
-#include "./gpu_swap_history.h"
-#include "./gpu_swap_prefetch.h"
+#include "gpu_swap.h"
+#include "gpu_swap_history.h"
+#include "gpu_swap_prefetch.h"
 
 
 namespace mxnet {

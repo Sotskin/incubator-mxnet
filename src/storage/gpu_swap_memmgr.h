@@ -11,8 +11,8 @@
 #include <stdio.h>
 #include <string>
 
-#include "./gpu_swap_buddy.h"
-#include "./gpu_swap_history.h"
+#include "gpu_swap_buddy.h"
+#include "gpu_swap_history.h"
 
 namespace mxnet {
 
@@ -46,7 +46,6 @@ class MemoryManager {
     std::array<std::atomic_size_t, 16> malloc_size_;
     std::array<std::atomic_size_t, 16> free_count_;
     std::array<std::unordered_map<size_t, int>, 16> malloc_type_;
-    //std::vector<size_t> free_size_;
 }; // Class MemoryManager
 
 class CudaMemoryManager : public MemoryManager {
@@ -91,19 +90,17 @@ class BuddyMemoryManager : public MemoryManager {
   //public:
     //cudaError_t MemGetInfo(int device_id, size_t* total, size_t* free);
     //bool TryAllocate(int device_id, size_t size);
-    //cudaError_t Malloc(void*& devptr, size_t size, int device_id);
-    //cudaError_t Free(void* devptr, int device_id);
-    //void Statistics();
 
     //friend std::shared_ptr<MemoryManager> GetMemoryManagerRef();
+    //
+  //protected:
+    //cudaError_t MallocInternal(void*& devptr, size_t size, int device_id);
+    //cudaError_t FreeInternal(void* devptr, int device_id);
+    //void StatisticsInternal();
 
   //private:
     //SlabMemoryManager();
     //~SlabMemoryManager();
-
-    //std::vector<SlabSystem*> buddy_;
-    //// Note that this line means we assume there will no more than 16 GPUs.
-    //std::array<std::mutex, 16> mutex_;
 //}; // Class SlabMemoryManager
 std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 MemoryManager* GetMemoryManager();

@@ -45,6 +45,7 @@ class MemoryManager {
     std::array<std::atomic_size_t, 16> malloc_count_;
     std::array<std::atomic_size_t, 16> malloc_size_;
     std::array<std::atomic_size_t, 16> free_count_;
+    std::array<std::unordered_map<size_t, int>, 16> malloc_type_;
     //std::vector<size_t> free_size_;
 }; // Class MemoryManager
 
@@ -107,6 +108,6 @@ class BuddyMemoryManager : public MemoryManager {
 std::shared_ptr<MemoryManager> GetMemoryManagerRef();
 MemoryManager* GetMemoryManager();
 
-} //namespace mxnet
+} // namespace mxnet
 
 #endif // MXNET_MEM_MGR_H_

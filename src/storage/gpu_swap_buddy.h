@@ -103,8 +103,8 @@ class BuddySystem {
     size_t total_size_;
     size_t allocated_size_;
     size_t available_size_;
-    size_t merge_count_;
     size_t total_allocated_size_;
+    size_t merge_count_;
 }; //Class BuddySystem
 
 } //namespace mxnet

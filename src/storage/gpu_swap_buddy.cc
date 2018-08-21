@@ -4,7 +4,8 @@
 #include <set>
 
 #include <dmlc/logging.h>
-#include "./gpu_swap_buddy.h"
+#include "gpu_swap_buddy.h"
+#include "gpu_swap_util.h"
 
 #define BUDDY_DEBUG 0
 
@@ -85,14 +86,18 @@ cudaError_t BuddySystem::Free(void* ptr) {
   available_size_ += iter->second.Size();
   MergeBlock(InsertBlock(iter->second), BlockListIdx(iter->second.Size()));
   mem_pool_.erase(iter);
+#if BUDDY_DEBUG
   CheckSize();
+#endif
   return cudaSuccess;
 }
 
 void BuddySystem::Statistics() {
-  std::cout << "BuddySystem:" << std::endl
-            << "Total allocated count: " << total_allocated_size_ << std::endl
-            << "Merge count: " << merge_count_ << std::endl;
+  CheckSize();
+  std::cout << "=> BuddySystem:" << std::endl
+            << "=> Total allocated size: " << GBString(total_allocated_size_)
+            << std::endl
+            << "=> Merge count: " << merge_count_ << std::endl;
   PrintFreeList();
   merge_count_ = 0;
   total_allocated_size_ = 0;
@@ -137,7 +142,6 @@ void BuddySystem::MergeBlock(std::set<Block>::iterator iter, int idx) {
 }
 
 void BuddySystem::CheckSize() {
-#if BUDDY_DEBUG
   size_t size = 0;
   for (auto& free_list : free_list_) {
     for (auto& block : free_list) {
@@ -146,7 +150,6 @@ void BuddySystem::CheckSize() {
   }
   CHECK(size == available_size_) << "Size = " << size << " available_size = "
                                  << available_size_;
-#endif
 }
 
 void BuddySystem::CheckDuplicate() {
@@ -169,9 +172,12 @@ void BuddySystem::CheckDuplicate() {
 }
 
 void BuddySystem::PrintFreeList() {
+  std::cout << "=> Available size = " << GBString(available_size_) << std::endl;
   for (int i = 0; i < free_list_size_; i++ ) {
-    std::cout << "Free List Index = " << i
-              << ", size = " << free_list_[i].size() << std::endl;
+    if (free_list_[i].size() > 0) {
+      std::cout << "=> Free List Index = " << i
+                << ", size = " << free_list_[i].size() << std::endl;
+    }
   }
 }
 

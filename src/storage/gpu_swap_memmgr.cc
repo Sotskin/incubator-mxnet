@@ -6,7 +6,8 @@
 #include <math.h>
 
 #include "../common/cuda_utils.h"
-#include "./gpu_swap_memmgr.h"
+#include "gpu_swap_memmgr.h"
+#include "gpu_swap_util.h"
 
 namespace mxnet {
 
@@ -42,6 +43,7 @@ cudaError_t MemoryManager::StreamSynchronize(int device_id,
 cudaError_t MemoryManager::Malloc(void*& devptr, size_t size, int device_id) {
   malloc_count_[device_id]++;
   malloc_size_[device_id] += size;
+  malloc_type_[device_id][size] += 1;
   return this->MallocInternal(devptr, size, device_id);
 }
 
@@ -52,10 +54,11 @@ cudaError_t MemoryManager::Free(void* devptr, int device_id) {
 
 void MemoryManager::Statistics() {
   for (int i = 0; i < NUMBER_OF_GPU; i++) {
-    std::cout << "MemoryManager Statistics " << i << " :" << std::endl
-              << "Malloc count: " << malloc_count_[i] << std::endl
-              << "Malloc size: " << malloc_size_[i] << std::endl
-              << "Free count: " << free_count_[i] << std::endl;
+    std::cout << "MemoryManager " << i << " Statistics:" << std::endl
+              << "=> Malloc count: " << malloc_count_[i] << std::endl
+              << "=> Malloc size: " << GBString(malloc_size_[i]) << std::endl
+              << "=> Malloc type: " << malloc_type_[i].size() << std::endl
+              << "=> Free count: " << free_count_[i] << std::endl;
     malloc_count_[i] = malloc_size_[i] = free_count_[i] = 0;
   }
   this->StatisticsInternal();
@@ -121,7 +124,7 @@ BuddyMemoryManager::BuddyMemoryManager() {
     CHECK(avail > 0);
     buddy_[device] = new BuddySystem(memory, avail, device);
     std::cout << "Buddy System No." << device << " initialized with size = "
-              << avail << " bytes" << std::endl;
+              << GBString(avail) << std::endl;
   }
   std::cout << "Memory Manager initialization completed" << std::endl;
 }

@@ -6,8 +6,8 @@
 #include <math.h>
 
 #include "../common/cuda_utils.h"
-#include "gpu_swap_memmgr.h"
-#include "gpu_swap_util.h"
+#include "./gpu_swap_memmgr.h"
+#include "./gpu_swap_util.h"
 
 namespace mxnet {
 

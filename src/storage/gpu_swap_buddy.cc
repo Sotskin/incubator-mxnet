@@ -4,8 +4,8 @@
 #include <set>
 
 #include <dmlc/logging.h>
-#include "gpu_swap_buddy.h"
-#include "gpu_swap_util.h"
+#include "./gpu_swap_buddy.h"
+#include "./gpu_swap_util.h"
 
 #define BUDDY_DEBUG 0
 

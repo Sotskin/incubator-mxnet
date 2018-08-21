@@ -11,8 +11,8 @@
 #include <stdio.h>
 #include <string>
 
-#include "gpu_swap_buddy.h"
-#include "gpu_swap_history.h"
+#include "./gpu_swap_buddy.h"
+#include "./gpu_swap_history.h"
 
 namespace mxnet {
 

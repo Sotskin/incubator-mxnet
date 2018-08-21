@@ -9,10 +9,10 @@
 #include <set>
 #include <dmlc/parameter.h>
 #include <dmlc/logging.h>
-#include "gpu_swap_history.h"
-#include "gpu_swap_prefetch.h"
-#include "gpu_swap_memmgr.h"
-#include "gpu_swap_util.h"
+#include "./gpu_swap_history.h"
+#include "./gpu_swap_prefetch.h"
+#include "./gpu_swap_memmgr.h"
+#include "./gpu_swap_util.h"
 
 namespace mxnet {
 

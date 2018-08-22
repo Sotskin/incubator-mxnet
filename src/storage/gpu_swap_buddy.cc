@@ -4,11 +4,11 @@
 #include <set>
 
 #include <dmlc/logging.h>
-#include <mxnet/gpu_swap_buddy.h>
+#include "./gpu_swap_buddy.h"
+#include "./gpu_swap_util.h"
 
 #define BUDDY_DEBUG 0
 
-std::unordered_map<size_t, int>counters;
 namespace mxnet {
 
 bool operator< (const Block& lhs, const Block& rhs) {
@@ -17,7 +17,7 @@ bool operator< (const Block& lhs, const Block& rhs) {
 
 BuddySystem::BuddySystem(void* memory, size_t size, size_t device_id)
   : device_id_(device_id), total_size_(size), allocated_size_(0),
-    free_size_(size) {
+    available_size_(size) {
   free_list_size_ = ListSize(size);
   free_list_.resize(free_list_size_);
   memory_ = memory;
@@ -64,12 +64,12 @@ void* BuddySystem::Malloc(size_t size) {
                         allocated_it->Size() - block_size));
     }
     allocated_size_ += block_size;
-    free_size_ -= block_size;
+    total_allocated_size_ += block_size;
+    available_size_ -= block_size;
     CHECK(mem_pool_.find(allocated_it->Data()) == mem_pool_.end());
     mem_pool_[allocated_it->Data()] = Block(allocated_it->Data(), block_size);
     void* ret = allocated_it->Data();
     free_list_[list_idx].erase(allocated_it);
-    counters[size] += 1;
     return ret;
   } else {
     return nullptr;
@@ -83,13 +83,24 @@ cudaError_t BuddySystem::Free(void* ptr) {
     return cudaErrorInvalidValue;
   }
   allocated_size_ -= iter->second.Size();
-  free_size_ += iter->second.Size();
+  available_size_ += iter->second.Size();
   MergeBlock(InsertBlock(iter->second), BlockListIdx(iter->second.Size()));
   mem_pool_.erase(iter);
+#if BUDDY_DEBUG
   CheckSize();
-  //PrintFreeList();
-  //std::cout << counters.size() << std::endl;
+#endif
   return cudaSuccess;
+}
+
+void BuddySystem::Statistics() {
+  CheckSize();
+  std::cout << "=> BuddySystem:" << std::endl
+            << "=> Total allocated size: " << GBString(total_allocated_size_)
+            << std::endl
+            << "=> Merge count: " << merge_count_ << std::endl;
+  PrintFreeList();
+  merge_count_ = 0;
+  total_allocated_size_ = 0;
 }
 
 void BuddySystem::MergeBlock(std::set<Block>::iterator iter, int idx) {
@@ -124,22 +135,21 @@ void BuddySystem::MergeBlock(std::set<Block>::iterator iter, int idx) {
         break;
       }
     }
+    merge_count_++;
     idx += 1;
     block_size <<= 1;
   }
 }
 
 void BuddySystem::CheckSize() {
-#if BUDDY_DEBUG
   size_t size = 0;
   for (auto& free_list : free_list_) {
     for (auto& block : free_list) {
       size += block.Size();
     }
   }
-  CHECK(size == free_size_) << "Size = " << size << " free_size_ = "
-                            << free_size_;
-#endif
+  CHECK(size == available_size_) << "Size = " << size << " available_size = "
+                                 << available_size_;
 }
 
 void BuddySystem::CheckDuplicate() {
@@ -162,13 +172,12 @@ void BuddySystem::CheckDuplicate() {
 }
 
 void BuddySystem::PrintFreeList() {
-  std::cout << "=================================================" << std::endl
-            << "Free List Info:" << std::endl
-            << "=================================================" << std::endl;
-  std::cout << "Allocated size = " << allocated_size_ << std::endl;
+  std::cout << "=> Available size = " << GBString(available_size_) << std::endl;
   for (int i = 0; i < free_list_size_; i++ ) {
-    std::cout << "Free List Index = " << i
-              << ", size = " << free_list_[i].size() << std::endl;
+    if (free_list_[i].size() > 0) {
+      std::cout << "=> Free List Index = " << i
+                << ", size = " << free_list_[i].size() << std::endl;
+    }
   }
 }
 
